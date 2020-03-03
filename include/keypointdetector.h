@@ -24,6 +24,7 @@ public:
 		voxelgrid.setInputCloud(scene.makeShared());
 		voxelgrid.filter(sceneKeypoints_);
 	}
+
 	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, float model_resolution, float scene_resolution, float threshold) {
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ> issDetector;

@@ -60,17 +60,12 @@ public:
 
 class bshot
 {
-
 public :
-
     pcl::PointCloud<pcl::PointXYZ> cloud1, cloud2;
     pcl::PointCloud<pcl::Normal> cloud1_normals, cloud2_normals;
     pcl::PointCloud<pcl::PointXYZ> cloud1_keypoints, cloud2_keypoints;
-
     pcl::PointCloud<pcl::SHOT352> cloud1_shot, cloud2_shot;
-
     std::vector<bshot_descriptor> cloud1_bshot, cloud2_bshot;
-
 
     void calculate_normals ( float radius )
     {
@@ -88,7 +83,6 @@ public :
         normalEstimation.compute(cloud2_normals);
     }
 
-
     void  calculate_voxel_grid_keypoints ( float leaf_size )
     {
         // Find Keypoints on the input cloud
@@ -100,20 +94,14 @@ public :
 
         voxel_grid.setInputCloud(cloud2.makeShared());
         voxel_grid.filter(cloud2_keypoints);
-
-
     }
-
-
+    
     void calculate_SHOT ( float radius_model, float radius_scene )
     {
-
         // SHOT estimation object.
         pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot;
         shot.setRadiusSearch(radius_model);
-
         //shot.setNumberOfThreads(30);
-
         pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
         shot.setSearchMethod(kdtree);
 
@@ -126,9 +114,7 @@ public :
         shot.setSearchSurface(cloud2.makeShared());
         shot.setInputNormals(cloud2_normals.makeShared());
         shot.compute(cloud2_shot);
-
     }
-
 
     void compute_bshot()
     {
@@ -271,7 +257,6 @@ public :
             bshot_descriptors[i].bits = temp;
         }
     }
-
 
 };
 #endif // !BSHOT_BITS_H
