@@ -13,7 +13,6 @@ month={Sept},}
 additional parts were taken from PCL Tutorials or written by Joël Carlen, Student at the Lucerne University of Applied Sciences and Arts
 */
 
-
 //Includes
 #include <iostream>
 #include <pcl/filters/median_filter.h>
@@ -35,7 +34,6 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 //Namespaces
 using namespace std;
 using namespace pcl;
-
 //Model is to be matched in scene
 string modelFilename_;
 string sceneFilename_;
@@ -104,17 +102,15 @@ int main(int argc, char* argv[])
 	pcl::PointCloud<PointType> scene;
 	float modelResolution, sceneResolution;
 	int nRows = 400, nCols = 400;
-	modelFilename_ = "../Aufnahmen/Datensets/TLESS/Kinect/Scene/PointClouds/07/Modified/t_less_model07_median_0000_modified.ply";// T-LESS Pointcloud
-	sceneFilename_ = "../Aufnahmen/Datensets/TLess/Kinect/Scene/PointClouds/07/Modified/t_less_model07_median_0001_modified.ply";
+	modelFilename_ = "../../../../Aufnahmen/Datensets/TLESS/Kinect/Scene/PointClouds/07/Modified/t_less_model07_median_0001_modified.ply";// T-LESS Pointcloud
+	sceneFilename_ = "../../../../Aufnahmen/Datensets/TLess/Kinect/Scene/PointClouds/07/Modified/t_less_model07_median_0000_modified.ply";
 	std::cout << "Enter scene filename: ";
 	getline(cin, sceneFilename_);
-	//
-	//Read input files and make a Point Cloud
-	//
+
+	//Read input files and generate Point Cloud
 	FileHandler filehandler;
-	//Get fileformat of the model
-	std::string fileformat = modelFilename_.std::string::substr(modelFilename_.length() - 3); //get the fileformat -> at end of filename
-	//Read the model
+	//Get fileformat of the model -> last three letters of filename
+	std::string fileformat = modelFilename_.std::string::substr(modelFilename_.length() - 3);
 	if (fileformat == "ply") { //if File is a pointcloud in ply format
 		std::cout << "Filename read" << endl;
 		if (pcl::io::loadPLYFile(modelFilename_, model) == -1)
@@ -131,34 +127,8 @@ int main(int argc, char* argv[])
 			return (-1);
 		}
 	}
-	else if (fileformat == "csv") { //if depth image is stored in a csv file (epc660)
-		std::string bkgrFilename;
-		std::cout << "Enter Background filename: ";
-		getline(cin, bkgrFilename);
-		std::vector<std::vector<float>> cloud = filehandler.readCsv(modelFilename_);
-		std::vector<std::vector<float>> background = filehandler.readCsv(bkgrFilename);
-		if (cloud.size() < 240 || background.size() < 240) {
-			return -1; //file was not read correctly
-		}
-		pcl::PointCloud<pcl::PointXYZ> pointCloud = filehandler.getCloud(cloud, 16.0f, 0.02f, 0.02f, 0.05f);
-		pcl::PointCloud<pcl::PointXYZ> finalCloud;
-		pcl::PointCloud<pcl::PointXYZ> bkgrCloud = filehandler.getCloud(background, 16.0f, 0.02f, 0.02f, 0.05f);
-		float z;
-		PointXYZ point;
-		//subtract background from image
-		for (int i = 0; i < pointCloud.size(); ++i) {
-			z = bkgrCloud.at(i).z - pointCloud.at(i).z;
-			if (z > 0.002) {//do not add points below 2mm (they belong to the background)
-				point.x = pointCloud.at(i).x;
-				point.y = pointCloud.at(i).y;
-				point.z = z;
-				finalCloud.push_back(point);
-			}
-		}
-		model = finalCloud;
-	}
 	else if (fileformat == "png") { //if depth image is stored as a png file (T-LESS dataset)
-		char *file;
+		char* file;
 		file = &modelFilename_[0];
 		model = filehandler.getCloudFromPNG(file);
 	}
@@ -167,10 +137,9 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	//Get fileformat of the scene
-	fileformat = sceneFilename_.std::string::substr(sceneFilename_.length() - 3); //get the fileformat -> at end of filename
-	//Read the scene
-	if (fileformat == "ply") { //if File is a pointcloud in ply format
+	//Get fileformat of the scene -> last three letters of filename
+	fileformat = sceneFilename_.std::string::substr(sceneFilename_.length() - 3);
+	if (fileformat == "ply") {
 		std::cout << "Filename read" << endl;
 		if (pcl::io::loadPLYFile(sceneFilename_, scene) == -1)
 		{
@@ -186,61 +155,30 @@ int main(int argc, char* argv[])
 			return (-1);
 		}
 	}
-	else if (fileformat == "csv") { //if depth image(s) is(are) stored in a csv file (epc660)
-		std::string bkgrFilename;
-		std::cout << "Enter Background filename: ";
-		getline(cin, bkgrFilename);
-		std::vector<std::vector<float>> cloud = filehandler.readCsv(sceneFilename_);
-		std::vector<std::vector<float>> background = filehandler.readCsv(bkgrFilename);
-		if (cloud.size() < 240 || background.size() < 240) {
-			return 2; //file was not read correctly
-		}
-		pcl::PointCloud<pcl::PointXYZ> pointCloud = filehandler.getCloud(cloud, 16.0f, 0.02f, 0.02f, 0.05f);
-		pcl::PointCloud<pcl::PointXYZ> finalCloud;
-		pcl::PointCloud<pcl::PointXYZ> bkgrCloud = filehandler.getCloud(background, 16.0f, 0.02f, 0.02f, 0.05f);
-		float z;
-		PointXYZ point;
-		//subtract background from image
-		for (int i = 0; i < pointCloud.size(); ++i) {
-			z = bkgrCloud.at(i).z - pointCloud.at(i).z;
-			if (z > 0.002) {
-				point.x = pointCloud.at(i).x;
-				point.y = pointCloud.at(i).y;
-				point.z = z;
-				finalCloud.push_back(point);
-			}
-		}
-		scene = finalCloud;
-	}
 	else if (fileformat == "png") { //if depth image is stored as a png file (T-LESS dataset)
 		char* file;
 		file = &sceneFilename_[0];
 		scene = filehandler.getCloudFromPNG(file);
-			}
+	}
 	else {
 		std::cout << "Unknown scene file type. Check if there are any dots in the files path." << endl;
 		return -1;
 	}
 
-	Eigen::Matrix4f matrix;
 	//calculate model and scene resolution
+	Eigen::Matrix4f matrix;
 	modelResolution = static_cast<float> (computeCloudResolution(model.makeShared()));
 	sceneResolution = static_cast<float> (computeCloudResolution(scene.makeShared()));
 	std::cout << "Model resolution: " << modelResolution << endl;
 	std::cout << "Scene resolution: " << sceneResolution << endl;
 
-	//
 	//Add Gaussian Noise to evaluate the best object
-	//
 	//scene = addGaussianNoise(scene,sceneResolution);
 
-
+	//calculate normals
 	clock_t start, end;
 	double cpuTimeUsed;
 	start = clock();
-	//
-	//calculate normals
-	//
 	Normals norm;
 	norm.model = model;
 	norm.scene = scene;
@@ -265,60 +203,46 @@ int main(int argc, char* argv[])
 	cpuTimeUsed = ((double)(end - start)) / CLOCKS_PER_SEC;
 	std::cout << "Time taken for normal estimation: " << (double)cpuTimeUsed << std::endl;
 
+	//Detect keypoints
 	clock_t start1, end1;
 	double cpuTimeUsed1;
 	start1 = clock();
-	//
-	//Detect keypoints
-	//
 	KeypointDetector keypointDetect;
 	keypointDetect.calculateIssKeypoints(model, scene, modelResolution, sceneResolution, 0.975f);
 	//keypointDetect.calculateVoxelgridKeypoints(model, scene, 11 * modelResolution, 11 * sceneResolution);
 	end1 = clock();
 	cpuTimeUsed1 = ((double)(end1 - start1)) / CLOCKS_PER_SEC;
 	std::cout << "Time taken for Keypoint Detection : " << (double)cpuTimeUsed1 << std::endl;
-
 	std::cout << "No. Model Keypoints: " << keypointDetect.modelKeypoints_.size() << " of: " << model.size() << endl;
 	std::cout << "No. Scene Keypoints: " << keypointDetect.sceneKeypoints_.size() << " of: " << scene.size() << endl;
 
-
+	//Calculate descriptor for each keypoint
 	clock_t start2, end2;
 	double cpuTimeUsed2;
 	start2 = clock();
-	//
-	//Calculate descriptor for each keypoint
-	//
 	Descriptor des;
 	des.normal = norm;
 	des.keypointDetect = keypointDetect;
 	des.model_ = model;
 	des.scene_ = scene;
-
-
 	des.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
-
 	end2 = clock();
 	cpuTimeUsed2 = ((double)(end2 - start2)) / CLOCKS_PER_SEC;
 	std::cout << "Time taken for Descriptor : " << (double)cpuTimeUsed2 << std::endl;
 
-
+	//Matching
 	clock_t start3, end3;
 	double cpu_time_used3;
 	start3 = clock();
-	//
-	//Matching
-	//
 	Matching match;
 	match.desc = des;
 	match.calculateCorrespondences(c_threshold);
 	end3 = clock();
 	cpu_time_used3 = ((double)(end3 - start3)) / CLOCKS_PER_SEC;
 	std::cout << "Time taken for Matching : " << (double)cpu_time_used3 << std::endl;
-
 	std::cout << "Correspondences found: " << match.corresp.size() << endl;
-	//
+
 	// RANSAC based Correspondence Rejection with ICP
-	//
 #if 1
 	pcl::CorrespondencesConstPtr correspond = boost::make_shared< pcl::Correspondences >(match.corresp);
 	pcl::Correspondences corr;
@@ -338,26 +262,22 @@ int main(int argc, char* argv[])
 	pcl::transformPointCloud(keypointDetect.modelKeypoints_, keypointDetect.modelKeypoints_, mat);
 	pcl::transformPointCloud(model, model, mat);
 
-	//
 	// Iterative closest Point ICP
-	//
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 	icp.setInputSource(model.makeShared());
 	icp.setInputTarget(scene.makeShared());
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	icp.align(Final);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " <<
-		icp.getFitnessScore() << std::endl;
+	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	std::cout << icp.getFinalTransformation() << std::endl;
 	matrix << icp.getFinalTransformation();
 	pcl::transformPointCloud(keypointDetect.modelKeypoints_, keypointDetect.modelKeypoints_, matrix);
 	pcl::transformPointCloud(model, model, matrix);
-
-
 	std::string data = "";
-//Enable if the evaluation according to Buch et al. should be done
+
+	//Enable if the evaluation according to Buch et al. should be done
 #if 0
-	string filename = "../../../../BAT/Tests/PR_Kurven/TLess/Kinect/Applikationsspezifisch/07/rotation/tless_dataset_shot.csv";
+	string filename = "Buch_tless_dataset_shot.csv";
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		std::cout << "File: " << " could not be read" << std::endl;
@@ -381,31 +301,27 @@ int main(int argc, char* argv[])
 	pcl::Correspondences corr = match.corresp;
 #endif
 
-//Enable if the evaluation according to Guo et al. should be done
+	//Enable if the evaluation according to Guo et al. should be done
 #if 0
-
 	//Calculate euclidean distance of a model keypoint to its matched scene keypoint
 	std::vector<float> distance;
 	for (int i = 0; i < corr.size(); ++i) {
 		distance.push_back((keypointDetect.modelKeypoints_.at(corr.at(i).index_query).x - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).x) * (keypointDetect.modelKeypoints_.at(corr.at(i).index_query).x - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).x) + (keypointDetect.modelKeypoints_.at(corr.at(i).index_query).y - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).y) * (keypointDetect.modelKeypoints_.at(corr.at(i).index_query).y - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).y) + (keypointDetect.modelKeypoints_.at(corr.at(i).index_query).z - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).z) * (keypointDetect.modelKeypoints_.at(corr.at(i).index_query).z - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).z));
-		distance[i] = sqrt(distance[i])
+		distance[i] = sqrt(distance[i]);
 	}
 	//Get number of TP's
 	//A match is considered TP if the euclidean distance of a model keypoint to its
 	//matched scene keypoint is less than half the supportradius
 	pcl::Correspondences tpCorr;
 	float dist_thresh = shotRadius_ * modelResolution / 2;
-
 	for (int i = 0; i < corr.size(); ++i) {
 		if (distance[i] < dist_thresh) {
 			tpCorr.push_back(corr.at(i));
 		}
 	}
 
-	//
 	//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
 	//The evaluation is done in MATLAB
-	//
 	if (keypointDetect.sceneKeypoints_.size() < keypointDetect.modelKeypoints_.size()) {
 		data = std::to_string(keypointDetect.sceneKeypoints_.size()) + "," + std::to_string(dist_thresh) + "\n";
 	}
@@ -419,7 +335,7 @@ int main(int argc, char* argv[])
 		data += "\n";
 		keypoints.push_back(keypointDetect.sceneKeypoints_.at(corr.at(i).index_match));
 	}
-
+	//Write to File
 	if (isshot) {
 		filehandler.writeToFile(data, "tless_dataset_shot.csv");
 	}
@@ -473,7 +389,7 @@ int main(int argc, char* argv[])
 	while (!viewer->wasStopped())
 	{
 		viewer->spinOnce(100);
-		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+		std::this_thread::sleep_for(100ms);
 	}
 #endif
 	return 0;
