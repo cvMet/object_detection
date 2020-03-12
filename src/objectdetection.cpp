@@ -40,7 +40,7 @@ string sceneFilename_ = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/003
 string filename = modelFilename_.substr(52, (modelFilename_.length() - 56));
 string pr_filename = "../../../../PR/" + filename + ".csv";
 clock_t start, end_time;
-pcl::Correspondences corr;
+
 bool running = false;
 
 //Descriptor Parameters
@@ -134,6 +134,20 @@ double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cl
 	return res;
 }
 
+//pcl::Correspondences ransac_rejection(pcl::Correspondences corresp, float resolution, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints) {
+//	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
+//	double sac_threshold = 30.0 * resolution;
+//	pcl::Correspondences corr;
+//	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> Ransac_Rejector;
+//	Ransac_Rejector.setInputSource(modelKeypoints.makeShared());
+//	Ransac_Rejector.setInputTarget(sceneKeypoints.makeShared());
+//	Ransac_Rejector.setInlierThreshold(sac_threshold);
+//	Ransac_Rejector.setInputCorrespondences(correspond);
+//	Ransac_Rejector.getCorrespondences(corr);
+//	std::cout << "Correspondences found after(RANSAC): " << corr.size() << endl;
+//	return corr;
+//}
+
 void time_meas() {
 	double cpuTimeUsed;
 	if (!running) {
@@ -216,7 +230,10 @@ int main(int argc, char* argv[])
 
 	// RANSAC based Correspondence Rejection with ICP
 #if 1
+	//corr = ransac_rejection(match.corresp);
+
 	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(match.corresp);
+	pcl::Correspondences corr;
 	double sac_threshold = 30.0 * modelResolution;
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> Ransac_Rejector;
 	Ransac_Rejector.setInputSource(keypointDetect.modelKeypoints_.makeShared());
