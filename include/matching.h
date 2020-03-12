@@ -122,7 +122,7 @@ public:
 			
 		
 #endif
-
+	std::cout << "Correspondences found: " << corresp.size() << std::endl;
 	}
 };
 #endif // !MATCHING_H
