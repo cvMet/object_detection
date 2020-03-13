@@ -13,7 +13,7 @@ public:
 
 	void writeToFile(std::string data, string filename) {
 		ofstream myfile;
-		myfile.open(filename);
+		myfile.open(filename, std::ofstream::app);
 		myfile << data;
 		myfile.close();
 		std::cout << "Writing to File succeeded." << endl;

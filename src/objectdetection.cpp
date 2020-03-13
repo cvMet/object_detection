@@ -34,17 +34,18 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 //Namespaces
 using namespace std;
 using namespace pcl;
+
 //Model is to be matched in scene
-string modelFilename_ = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/001_Bottlewhite1model.ply";
-string sceneFilename_ = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/003_Bottlewhite3model.ply";
-string filename = modelFilename_.substr(52, (modelFilename_.length() - 56));
+string model_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/001_Bottlewhite1model.ply";
+string scene_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/003_Bottlewhite3model.ply";
+string filename = model_filename.substr(52, (model_filename.length() - 56));
 string pr_filename = "../../../../PR/" + filename + ".csv";
 clock_t start, end_time;
+pcl::Correspondences corr;
 
 bool running = false;
 
 //Descriptor Parameters
-const float c_threshold = 1.0f;
 float shotRadius_ = 35;
 float fpfhRadius_ = 20;
 const bool gt_generation(false);
@@ -54,6 +55,26 @@ const float supportRadius_ = shotRadius_;
 #else
 const float supportRadius_ = fpfhRadius_;
 #endif
+
+Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+	Eigen::Matrix4f mat = RansacRejector.getBestTransformation();
+	cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << mat << endl;
+	// int ransac_corr = corr.size();
+	return mat;
+}
+
+Eigen::Matrix4f icp(pcl::PointCloud<PointType> model, pcl::PointCloud<PointType> scene) {
+	Eigen::Matrix4f mat;
+	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+	icp.setInputSource(model.makeShared());
+	icp.setInputTarget(scene.makeShared());
+	pcl::PointCloud<pcl::PointXYZ> Final;
+	icp.align(Final);
+	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	std::cout << icp.getFinalTransformation() << std::endl;
+	mat << icp.getFinalTransformation();
+	return mat;
+}
 
 pcl::PointCloud<PointType> load_3dmodel(string filename, string fileformat) {
 	pcl::PointCloud<PointType> temp_cloud;
@@ -101,7 +122,50 @@ pcl::PointCloud<PointType> addGaussianNoise(pcl::PointCloud<PointType> pointClou
 	return pointCloud;
 }
 
-double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
+pcl::Correspondences get_true_positives(float &distance_threshold, std::vector<float> &euclidean_distances){
+	pcl::Correspondences temp;
+	for (int i = 0; i < corr.size(); ++i) {
+		if (euclidean_distances[i] < distance_threshold) {
+			temp.push_back(corr.at(i));
+		}
+		else {
+			std::cout << "FP @ " + to_string(corr.at(i).index_match) << endl;
+		}
+	}
+	return temp;
+}
+
+std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> model_keypoints, const pcl::PointCloud<pcl::PointXYZ> scene_keypoints) {
+	std::vector<float> distance;
+	for (int i = 0; i < corr.size(); ++i) {
+		distance.push_back((model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x) *
+			(model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x) +
+			(model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y) *
+			(model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y) +
+			(model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z) *
+			(model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z));
+		distance[i] = sqrt(distance[i]);
+	}
+	return distance;
+}
+
+string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold, const float& c_threshold) {
+	std::string data = "";
+	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
+		data = std::to_string(Detector.sceneKeypoints_.size()) + "," + std::to_string(distance_threshold) + "," + std::to_string(c_threshold) + "\n";
+	}
+	else {
+		data = std::to_string(Detector.modelKeypoints_.size()) + "," + std::to_string(distance_threshold) + "," + std::to_string(c_threshold) + "\n";
+	}
+	for (int i = 0; i < corr.size(); ++i)
+	{
+		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
+		data += "\n";
+	}
+	return data;
+}
+
+double compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 //returns the mean distance from a point to its nearest neighbour
 {
 	double res = 0.0;
@@ -134,19 +198,17 @@ double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cl
 	return res;
 }
 
-//pcl::Correspondences ransac_rejection(pcl::Correspondences corresp, float resolution, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints) {
-//	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
-//	double sac_threshold = 30.0 * resolution;
-//	pcl::Correspondences corr;
-//	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> Ransac_Rejector;
-//	Ransac_Rejector.setInputSource(modelKeypoints.makeShared());
-//	Ransac_Rejector.setInputTarget(sceneKeypoints.makeShared());
-//	Ransac_Rejector.setInlierThreshold(sac_threshold);
-//	Ransac_Rejector.setInputCorrespondences(correspond);
-//	Ransac_Rejector.getCorrespondences(corr);
-//	std::cout << "Correspondences found after(RANSAC): " << corr.size() << endl;
-//	return corr;
-//}
+void ransac_rejection(pcl::Correspondences corresp, float resolution, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
+	double sac_threshold = 30.0 * resolution;
+	RansacRejector.setInputSource(modelKeypoints.makeShared());
+	RansacRejector.setInputTarget(sceneKeypoints.makeShared());
+	RansacRejector.setInlierThreshold(sac_threshold);
+	RansacRejector.setInputCorrespondences(correspond);
+	RansacRejector.getCorrespondences(corr);
+	std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
+
+}
 
 void time_meas() {
 	double cpuTimeUsed;
@@ -176,171 +238,108 @@ void time_meas(string action) {
 	}
 }
 
+void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector) {
+	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
+	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.modelKeypoints_.size()) << endl;
+};
+
 int main(int argc, char* argv[])
 {
 	FileHandler filehandler;
-	Eigen::Matrix4f matrix;
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
 	float modelResolution, sceneResolution;
+	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 
 	//Get fileformat of the model -> last three letters of filename
-	std::string model_fileformat = modelFilename_.std::string::substr(modelFilename_.length() - 3);
-	std::string scene_fileformat = sceneFilename_.std::string::substr(sceneFilename_.length() - 3);
+	std::string model_fileformat = model_filename.std::string::substr(model_filename.length() - 3);
+	std::string scene_fileformat = scene_filename.std::string::substr(scene_filename.length() - 3);
 
-	model = load_3dmodel(modelFilename_, model_fileformat);
-	scene = load_3dmodel(sceneFilename_, scene_fileformat);
-	//calculate model and scene resolution
-	modelResolution = static_cast<float> (computeCloudResolution(model.makeShared()));
-	sceneResolution = static_cast<float> (computeCloudResolution(scene.makeShared()));
+	model = load_3dmodel(model_filename, model_fileformat);
+	scene = load_3dmodel(scene_filename, scene_fileformat);
+	modelResolution = static_cast<float> (compute_cloud_resolution(model.makeShared()));
+	sceneResolution = static_cast<float> (compute_cloud_resolution(scene.makeShared()));
 
-	//calculate normals
+	//calculate NormalEstimatorals
 	time_meas();
-	Normals norm;
-	norm.model = model;
-	norm.scene = scene;
-	norm.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
-	norm.removeNaNNormals();
-	model = norm.model;
-	scene = norm.scene;
+	Normals NormalEstimator;
+	NormalEstimator.model = model;
+	NormalEstimator.scene = scene;
+	NormalEstimator.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
+	NormalEstimator.removeNaNNormals();
+	model = NormalEstimator.model;
+	scene = NormalEstimator.scene;
 	time_meas("normal estimation");
 
 	//Detect keypoints
 	time_meas();
-	KeypointDetector keypointDetect;
-	keypointDetect.calculateIssKeypoints(model, scene, norm.modelNormals_, modelResolution, sceneResolution, 0.7f);
+	KeypointDetector KeypointDetector;
+	KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution, 0.7f);
 	time_meas("detecting keypoints");
 
 	//Calculate descriptor for each keypoint
 	time_meas();
-	Descriptor des;
-	des.normal = norm;
-	des.keypointDetect = keypointDetect;
-	des.model_ = model;
-	des.scene_ = scene;
-	des.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
+	Descriptor Describer;
+	Describer.normal = NormalEstimator;
+	Describer.keypointDetect = KeypointDetector;
+	Describer.model_ = model;
+	Describer.scene_ = scene;
+	Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
 	time_meas("calculating descriptor");
+	
+	float c_threshold = 0.95f;
 
-	//Matching
-	time_meas();
-	Matching match;
-	match.desc = des;
-	match.calculateCorrespondences(c_threshold);
-	time_meas("matching");
-
-	// RANSAC based Correspondence Rejection with ICP
+	for (int j = 1; j < 6; ++j) {
+		c_threshold += 0.01f;
+		if (c_threshold > 1) {
+			c_threshold = 1;
+		}
+		else {
+			c_threshold = c_threshold;
+		}
+		//Matching
+		time_meas();
+		Matching Matcher;
+		Matcher.desc = Describer;
+		Matcher.calculateCorrespondences(c_threshold);
+		time_meas("matching");
+		if (Matcher.corresp.size() == 0) { continue; }
+		else {
 #if 1
-	//corr = ransac_rejection(match.corresp);
-
-	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(match.corresp);
-	pcl::Correspondences corr;
-	double sac_threshold = 30.0 * modelResolution;
-	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> Ransac_Rejector;
-	Ransac_Rejector.setInputSource(keypointDetect.modelKeypoints_.makeShared());
-	Ransac_Rejector.setInputTarget(keypointDetect.sceneKeypoints_.makeShared());
-	Ransac_Rejector.setInlierThreshold(sac_threshold);
-	Ransac_Rejector.setInputCorrespondences(correspond);
-	Ransac_Rejector.getCorrespondences(corr);
-	std::cout << "Correspondences found after(RANSAC): " << corr.size() << endl;
-
-
-	Eigen::Matrix4f mat = Ransac_Rejector.getBestTransformation();
-	cout << "Ransac Transformation Matrix yielding the largest number of inliers.  : \n" << mat << endl;
-	int ransac_corr = corr.size();
-	corr = match.corresp;		//comment out if RANSAC should be used
-	pcl::transformPointCloud(keypointDetect.modelKeypoints_, keypointDetect.modelKeypoints_, mat);
-	pcl::transformPointCloud(model, model, mat);
-
-	// Iterative closest Point ICP
-	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-	icp.setInputSource(model.makeShared());
-	icp.setInputTarget(scene.makeShared());
-	pcl::PointCloud<pcl::PointXYZ> Final;
-	icp.align(Final);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-	std::cout << icp.getFinalTransformation() << std::endl;
-	matrix << icp.getFinalTransformation();
-	pcl::transformPointCloud(keypointDetect.modelKeypoints_, keypointDetect.modelKeypoints_, matrix);
-	pcl::transformPointCloud(model, model, matrix);
-	std::string data = "";
-
-	//Enable if the evaluation according to Buch et al. should be done
-#if 0
-	string filename = "Buch_tless_dataset_shot.csv";
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		std::cout << "File: " << " could not be read" << std::endl;
-	}
-	std::string line = "";
-	// Iterate through each line and split the content using delimeter
-	std::vector<std::vector<float>> pointcloud(nRows, std::vector<float>(nCols, 0));
-	int indRow = 0;
-	data = "";
-	while (getline(file, line)) {
-		data += line + "\n";
-	}
-	//Add a new entry and save the file
-	//first column are the number of matches before, second after RANSAC
-	//third column specifies if the object is positive (1) or negative (0) needs to be changed manually
-	data += to_string(corr.size()) + "," + to_string(ransac_corr) + ",1" + "\n";
-	filehandler.writeToFile(data, filename);
-#endif
-
+			// RANSAC based Correspondence Rejection with ICP
+			ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
+			Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
+			pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
+			pcl::transformPointCloud(model, model, transformation_matrix);
+			// Iterative closest Point ICP
+			transformation_matrix = icp(model, scene);
+			pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
+			pcl::transformPointCloud(model, model, transformation_matrix);
 #else
-	pcl::Correspondences corr = match.corresp;
+			pcl::Correspondences corr = match.corresp;
 #endif
 
-	//Enable if the evaluation according to Guo et al. should be done
+			//Enable if the evaluation according to Guo et al. should be done
 #if 1
-	//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
-	std::vector<float> distance;
-	for (int i = 0; i < corr.size(); ++i) {
-		distance.push_back((keypointDetect.modelKeypoints_.at(corr.at(i).index_query).x - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).x) *
-			(keypointDetect.modelKeypoints_.at(corr.at(i).index_query).x - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).x) + 
-			(keypointDetect.modelKeypoints_.at(corr.at(i).index_query).y - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).y) * 
-			(keypointDetect.modelKeypoints_.at(corr.at(i).index_query).y - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).y) + 
-			(keypointDetect.modelKeypoints_.at(corr.at(i).index_query).z - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).z) * 
-			(keypointDetect.modelKeypoints_.at(corr.at(i).index_query).z - keypointDetect.sceneKeypoints_.at(corr.at(i).index_match).z));
-		distance[i] = sqrt(distance[i]);
-	}
-	//Get number of TP's
-	//A match is considered TP if the euclidean distance of a model keypoint to its
-	//matched scene keypoint is less than half the supportradius
-	pcl::Correspondences tpCorr;
-	float dist_thresh = shotRadius_ * modelResolution / 2;
-	for (int i = 0; i < corr.size(); ++i) {
-		if (distance[i] < dist_thresh) {
-			tpCorr.push_back(corr.at(i));
+			//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
+			std::vector<float> euclidean_distance;
+			euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
+
+			//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
+			pcl::Correspondences true_positives;
+			float distance_threshold = shotRadius_ * modelResolution / 2;
+			true_positives = get_true_positives(distance_threshold, euclidean_distance);
+
+			//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
+			std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold, c_threshold);
+			filehandler.writeToFile(results, pr_filename);
+			print_results(true_positives, KeypointDetector);
+#endif
 		}
 	}
-	//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
-	//The evaluation is done in MATLAB
-	if (keypointDetect.sceneKeypoints_.size() < keypointDetect.modelKeypoints_.size()) {
-		data = std::to_string(keypointDetect.sceneKeypoints_.size()) + "," + std::to_string(dist_thresh) + "\n";
-	}
-	else {
-		data = std::to_string(keypointDetect.modelKeypoints_.size()) + "," + std::to_string(dist_thresh) + "\n";
-	}
-	pcl::PointCloud<pcl::PointXYZ> keypoints;
-	for (int i = 0; i < corr.size(); ++i)
-	{
-		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(distance[i]);
-		data += "\n";
-		keypoints.push_back(keypointDetect.sceneKeypoints_.at(corr.at(i).index_match));
-	}
-	//Write to File
-	if (isshot) {
-		filehandler.writeToFile(data, pr_filename);
-	}
-	else {
-		filehandler.writeToFile(data, pr_filename);
-	}
-	//Calculate Precision and Recall and print them
-	std::cout << "TP: " << tpCorr.size() << ", FP: " << corr.size() - tpCorr.size() << endl;
-	std::cout << "Precision: " << (float)tpCorr.size() / (float)corr.size() << " Recall: " << tpCorr.size() / (float)(keypointDetect.modelKeypoints_.size()) << endl;
-#endif
+
 //Enable if the visualization module should be used
-#if 1
+#if 0
 	//
 	// VISUALIZATION MODULE
 	//
@@ -358,15 +357,15 @@ int main(int argc, char* argv[])
 		0, 0, 1, 0,
 		0, 0, 0, 1;
 
-	pcl::transformPointCloud(keypointDetect.modelKeypoints_, keypointDetect.modelKeypoints_, t);
+	pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, t);
 	pcl::transformPointCloud(model, model, t);
 	//Add model keypoints to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color1(keypointDetect.modelKeypoints_.makeShared(), 200, 0, 0);
-	viewer->addPointCloud<pcl::PointXYZ>(keypointDetect.modelKeypoints_.makeShared(), single_color1, "sample cloud1");
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color1(KeypointDetector.modelKeypoints_.makeShared(), 200, 0, 0);
+	viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), single_color1, "sample cloud1");
 	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
 	//add scene keypoints to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(keypointDetect.sceneKeypoints_.makeShared(), 0, 0, 150);
-	viewer->addPointCloud<pcl::PointXYZ>(keypointDetect.sceneKeypoints_.makeShared(), single_color2, "sample cloud2");
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(KeypointDetector.sceneKeypoints_.makeShared(), 0, 0, 150);
+	viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.sceneKeypoints_.makeShared(), single_color2, "sample cloud2");
 	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
 	//add model points to visualizer
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color3(model.makeShared(), 155, 155, 155);
@@ -377,7 +376,7 @@ int main(int argc, char* argv[])
 	viewer->addPointCloud<pcl::PointXYZ>(scene.makeShared(), single_color4, "sample cloud4");
 	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud4");
 	//add lines between the correspondences
-	viewer->addCorrespondences<pcl::PointXYZ>(keypointDetect.modelKeypoints_.makeShared(), keypointDetect.sceneKeypoints_.makeShared(), corr/*goodCorr/*corresp*/, "correspondences");
+	viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), KeypointDetector.sceneKeypoints_.makeShared(), corr/*goodCorr/*corresp*/, "correspondences");
 
 	while (!viewer->wasStopped())
 	{
