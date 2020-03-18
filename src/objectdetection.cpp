@@ -36,14 +36,16 @@ using namespace std;
 using namespace pcl;
 
 //Model is to be matched in scene
-string model_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/001_Bottlewhite1model.ply";
-string scene_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/003_Bottlewhite3model.ply";
-string filename = model_filename.substr(52, (model_filename.length() - 56));
-string pr_filename = "../../../../PR/" + filename + ".csv";
+string model_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2/WhiteBottle_0_01.ply";
+string scene_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2/WhiteBottle_0_10.ply";
+string model_name = model_filename.substr(59, (model_filename.length() - 63));
+string scene_name = scene_filename.substr(59, (scene_filename.length() - 63));
+string pr_filename = "../../../../PR/Buch/" + model_name + "_to_" + scene_name + ".csv";
 clock_t start, end_time;
 pcl::Correspondences corr;
 
 bool running = false;
+int accumulated_keypoints = 0;
 
 //Descriptor Parameters
 float shotRadius_ = 35;
@@ -138,25 +140,34 @@ pcl::Correspondences get_true_positives(float &distance_threshold, std::vector<f
 std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> model_keypoints, const pcl::PointCloud<pcl::PointXYZ> scene_keypoints) {
 	std::vector<float> distance;
 	for (int i = 0; i < corr.size(); ++i) {
-		distance.push_back((model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x) *
-			(model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x) +
-			(model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y) *
-			(model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y) +
-			(model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z) *
-			(model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z));
+		distance.push_back(
+			pow((model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x), 2) +
+			pow((model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y), 2) +
+			pow((model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z), 2)
+		);
 		distance[i] = sqrt(distance[i]);
 	}
 	return distance;
 }
 
-string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold, const float& c_threshold) {
+string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold) {
 	std::string data = "";
 	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
-		data = std::to_string(Detector.sceneKeypoints_.size()) + "," + std::to_string(distance_threshold) + "," + std::to_string(c_threshold) + "\n";
+		data = std::to_string(Detector.sceneKeypoints_.size()) + "," + std::to_string(distance_threshold) +  "\n";
 	}
 	else {
-		data = std::to_string(Detector.modelKeypoints_.size()) + "," + std::to_string(distance_threshold) + "," + std::to_string(c_threshold) + "\n";
+		data = std::to_string(Detector.modelKeypoints_.size()) + "," + std::to_string(distance_threshold) +  "\n";
 	}
+	for (int i = 0; i < corr.size(); ++i)
+	{
+		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
+		data += "\n";
+	}
+	return data;
+}
+
+string concatenate_distances(std::vector<float>& euclidean_distance) {
+	std::string data = "";
 	for (int i = 0; i < corr.size(); ++i)
 	{
 		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
@@ -243,6 +254,15 @@ void print_results(pcl::Correspondences& true_positives, KeypointDetector& detec
 	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.modelKeypoints_.size()) << endl;
 };
 
+void accumulate_keypoints(KeypointDetector& Detector) {
+	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
+		accumulated_keypoints += Detector.sceneKeypoints_.size();
+	}
+	else {
+		accumulated_keypoints += Detector.modelKeypoints_.size();
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	FileHandler filehandler;
@@ -286,10 +306,10 @@ int main(int argc, char* argv[])
 	Describer.scene_ = scene;
 	Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
 	time_meas("calculating descriptor");
-	
-	float c_threshold = 0.95f;
 
-	for (int j = 1; j < 6; ++j) {
+	float c_threshold = 1.0f;
+
+	for (int j = 1; j < 2; ++j) {
 		c_threshold += 0.01f;
 		if (c_threshold > 1) {
 			c_threshold = 1;
@@ -319,27 +339,39 @@ int main(int argc, char* argv[])
 			pcl::Correspondences corr = match.corresp;
 #endif
 
-			//Enable if the evaluation according to Guo et al. should be done
-#if 1
 			//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
-			std::vector<float> euclidean_distance;
-			euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
-
-			//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
-			pcl::Correspondences true_positives;
+			std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
 			float distance_threshold = shotRadius_ * modelResolution / 2;
-			true_positives = get_true_positives(distance_threshold, euclidean_distance);
+			pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+			print_results(true_positives, KeypointDetector);
+
+			//Enable if evaluation according to Guo et al.
+#if 0
+			//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
+			pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
 
 			//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
-			std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold, c_threshold);
+			pr_filename = "../../../../PR/Guo/" + model_name + "_to_" + scene_name + ".csv";
+			std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
 			filehandler.writeToFile(results, pr_filename);
 			print_results(true_positives, KeypointDetector);
 #endif
+			//Enable if evaluation according to Buch et al.
+#if 0
+			accumulate_keypoints(KeypointDetector);
+			std::string results = concatenate_distances(euclidean_distance);
+			filehandler.writeToFile(results, pr_filename);
+#endif
 		}
 	}
+	//float distance_threshold = shotRadius_ * modelResolution / 2;
+	//std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+	//filehandler.writeToFile(NOF_keypoints, pr_filename);
+
+
 
 //Enable if the visualization module should be used
-#if 0
+#if 1
 	//
 	// VISUALIZATION MODULE
 	//
