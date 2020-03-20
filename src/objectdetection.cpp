@@ -32,18 +32,14 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #endif
 
 //Namespaces
+namespace fs = boost::filesystem;
 using namespace std;
 using namespace pcl;
 
 //Model is to be matched in scene
-string model_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2/WhiteBottle_0_01.ply";
-string scene_filename = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2/WhiteBottle_0_10.ply";
-string model_name = model_filename.substr(59, (model_filename.length() - 63));
-string scene_name = scene_filename.substr(59, (scene_filename.length() - 63));
-string pr_filename = "../../../../PR/Buch/" + model_name + "_to_" + scene_name + ".csv";
+
 clock_t start, end_time;
 pcl::Correspondences corr;
-
 bool running = false;
 int accumulated_keypoints = 0;
 
@@ -59,6 +55,7 @@ const float supportRadius_ = fpfhRadius_;
 #endif
 
 Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+	cout << "# Iterations: " << RansacRejector.getMaximumIterations() << endl;
 	Eigen::Matrix4f mat = RansacRejector.getBestTransformation();
 	cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << mat << endl;
 	// int ransac_corr = corr.size();
@@ -66,12 +63,16 @@ Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::Corresponden
 }
 
 Eigen::Matrix4f icp(pcl::PointCloud<PointType> model, pcl::PointCloud<PointType> scene) {
-	Eigen::Matrix4f mat;
+	Eigen::Matrix4f mat, guess;
+	guess <<	-1, 0, 0, 0,
+				0, 1, 0, 0,
+				0, 0, -1, 0,
+				0, 0, 0, 1;
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 	icp.setInputSource(model.makeShared());
 	icp.setInputTarget(scene.makeShared());
-	pcl::PointCloud<pcl::PointXYZ> Final;
-	icp.align(Final);
+	pcl::PointCloud<pcl::PointXYZ> aligned_cloud;
+	icp.align(aligned_cloud);
 	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	std::cout << icp.getFinalTransformation() << std::endl;
 	mat << icp.getFinalTransformation();
@@ -176,6 +177,15 @@ string concatenate_distances(std::vector<float>& euclidean_distance) {
 	return data;
 }
 
+string get_fileformat(string filename) {
+	//Get fileformat of the model -> last three letters of filename
+	return filename.std::string::substr(filename.length() - 3);
+}
+
+string get_identifier(string filename, int name_pos, int extension_pos){
+	return filename.substr(name_pos, (extension_pos - name_pos));
+}
+
 double compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 //returns the mean distance from a point to its nearest neighbour
 {
@@ -218,7 +228,6 @@ void ransac_rejection(pcl::Correspondences corresp, float resolution, pcl::Point
 	RansacRejector.setInputCorrespondences(correspond);
 	RansacRejector.getCorrespondences(corr);
 	std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
-
 }
 
 void time_meas() {
@@ -263,17 +272,52 @@ void accumulate_keypoints(KeypointDetector& Detector) {
 	}
 }
 
+void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path>& ret)
+{
+	if (!fs::exists(root) || !fs::is_directory(root)) return;
+
+	fs::recursive_directory_iterator it(root);
+	fs::recursive_directory_iterator endit;
+
+	while (it != endit)
+	{
+		if (fs::is_regular_file(*it) && it->path().extension() == ext) ret.push_back(it->path().filename());
+		++it;
+
+	}
+}
+
 int main(int argc, char* argv[])
 {
+	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	FileHandler filehandler;
+	Normals NormalEstimator;
+	KeypointDetector KeypointDetector;
+	Descriptor Describer;
+	Matching Matcher;
+
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
-	float modelResolution, sceneResolution;
-	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
+	vector<fs::path> model_names;
+	vector<fs::path> scene_names;
 
-	//Get fileformat of the model -> last three letters of filename
-	std::string model_fileformat = model_filename.std::string::substr(model_filename.length() - 3);
-	std::string scene_fileformat = scene_filename.std::string::substr(scene_filename.length() - 3);
+	float modelResolution, sceneResolution;
+
+	string model_directory = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2";
+	string scene_directory = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2";
+	get_all_file_names(model_directory, ".ply", model_names);
+	get_all_file_names(scene_directory, ".ply", scene_names);
+	string model_filename = model_directory + "/" + model_names[0].string();
+	string scene_filename = model_directory + "/" + scene_names[0].string();
+
+	int name_pos = model_filename.find("WhiteBottle", 0);
+	int extension_pos = model_filename.find(".ply", 0);
+	string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
+	string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
+	string pr_filename = "../../../../PR/Buch/" + model_identifier + "_to_" + scene_identifier + ".csv";
+
+	std::string model_fileformat = get_fileformat(model_filename);
+	std::string scene_fileformat = get_fileformat(scene_filename);
 
 	model = load_3dmodel(model_filename, model_fileformat);
 	scene = load_3dmodel(scene_filename, scene_fileformat);
@@ -282,7 +326,6 @@ int main(int argc, char* argv[])
 
 	//calculate NormalEstimatorals
 	time_meas();
-	Normals NormalEstimator;
 	NormalEstimator.model = model;
 	NormalEstimator.scene = scene;
 	NormalEstimator.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
@@ -293,13 +336,11 @@ int main(int argc, char* argv[])
 
 	//Detect keypoints
 	time_meas();
-	KeypointDetector KeypointDetector;
 	KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution, 0.7f);
 	time_meas("detecting keypoints");
 
 	//Calculate descriptor for each keypoint
 	time_meas();
-	Descriptor Describer;
 	Describer.normal = NormalEstimator;
 	Describer.keypointDetect = KeypointDetector;
 	Describer.model_ = model;
@@ -319,14 +360,14 @@ int main(int argc, char* argv[])
 		}
 		//Matching
 		time_meas();
-		Matching Matcher;
 		Matcher.desc = Describer;
 		Matcher.calculateCorrespondences(c_threshold);
 		time_meas("matching");
 		if (Matcher.corresp.size() == 0) { continue; }
 		else {
 #if 1
-			// RANSAC based Correspondence Rejection with ICP
+			// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
+			RansacRejector.setMaximumIterations(1000);
 			ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
 			Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
 			pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
@@ -377,7 +418,6 @@ int main(int argc, char* argv[])
 	//
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 	viewer->setBackgroundColor(0, 0, 0);
-
 
 	//viewer->addCoordinateSystem (1.0);
 	viewer->initCameraParameters();
