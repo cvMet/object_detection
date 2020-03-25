@@ -25,7 +25,7 @@ public:
 		voxelgrid.filter(sceneKeypoints_);
 	}
 
-	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, pcl::PointCloud<pcl::Normal> normals, float model_resolution, float scene_resolution, float threshold) {
+	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, pcl::PointCloud<pcl::Normal> normals, float model_resolution, float scene_resolution, float threshold, int neighbor) {
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ> issDetector;
 		issDetector.setNormals(normals.makeShared());
@@ -34,7 +34,7 @@ public:
 		issDetector.setNonMaxRadius(4 * model_resolution);
 		issDetector.setThreshold21(threshold);
 		issDetector.setThreshold32(threshold);
-		issDetector.setMinNeighbors(3);
+		issDetector.setMinNeighbors(neighbor);
 		issDetector.setNumberOfThreads(4);
 		issDetector.setInputCloud(model.makeShared());
 		issDetector.compute(modelKeypoints_);

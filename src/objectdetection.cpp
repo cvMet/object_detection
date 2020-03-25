@@ -46,7 +46,6 @@ int accumulated_keypoints = 0;
 //Descriptor Parameters
 float shotRadius_ = 35;
 float fpfhRadius_ = 20;
-const bool gt_generation(false);
 
 #if isshot
 const float supportRadius_ = shotRadius_;
@@ -291,128 +290,125 @@ int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	FileHandler filehandler;
-	Normals NormalEstimator;
-	KeypointDetector KeypointDetector;
-	Descriptor Describer;
-	Matching Matcher;
+
+	float modelResolution, sceneResolution;
+	vector<float> keypointdetector_threshold = { 0.7f, 0.9f };
+	vector<int> keypointdetector_nof_neighbors = {3, 5};
 
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
 	vector<fs::path> model_names;
 	vector<fs::path> scene_names;
 
-	float modelResolution, sceneResolution;
-
-	string model_directory = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2";
-	string scene_directory = "../../../../Aufnahmen/Datensets/Melexis_Punktwolken/Serie2";
+	string model_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
+	string scene_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
 	get_all_file_names(model_directory, ".ply", model_names);
 	get_all_file_names(scene_directory, ".ply", scene_names);
-	string model_filename = model_directory + "/" + model_names[0].string();
-	string scene_filename = model_directory + "/" + scene_names[0].string();
+	//string model_filename = model_directory + "/" + model_names[0].string();
+	string model_filename = "../../../../clouds/Datensets/20_03_20/SC/0_Tran/SensorCase_0_0_0_0.ply";
+	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
+		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
+			for (int scene_number = 0; scene_number < scene_names.size(); ++scene_number) {
+				Normals NormalEstimator;
+				KeypointDetector KeypointDetector;
+				Descriptor Describer;
+				Matching Matcher;
 
-	int name_pos = model_filename.find("WhiteBottle", 0);
-	int extension_pos = model_filename.find(".ply", 0);
-	string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
-	string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
-	string pr_filename = "../../../../PR/Buch/" + model_identifier + "_to_" + scene_identifier + ".csv";
+				string scene_filename = scene_directory + "/" + scene_names[scene_number].string();
+				int name_pos = scene_filename.find("SensorCase", 0);
+				int extension_pos = scene_filename.find(".ply", 0);
+				string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
+				string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
+				string pr_filename = "../../../../PR/Buch/Automated/iss"	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) + "/th"
+																			+ std::to_string(keypointdetector_threshold[threshold]).substr(0,3) + "/" 
+																			+ model_identifier + "_to_" + scene_identifier + ".csv";
+				std::string model_fileformat = get_fileformat(model_filename);
+				std::string scene_fileformat = get_fileformat(scene_filename);
 
-	std::string model_fileformat = get_fileformat(model_filename);
-	std::string scene_fileformat = get_fileformat(scene_filename);
+				model = load_3dmodel(model_filename, model_fileformat);
+				scene = load_3dmodel(scene_filename, scene_fileformat);
+				modelResolution = static_cast<float> (compute_cloud_resolution(model.makeShared()));
+				sceneResolution = static_cast<float> (compute_cloud_resolution(scene.makeShared()));
 
-	model = load_3dmodel(model_filename, model_fileformat);
-	scene = load_3dmodel(scene_filename, scene_fileformat);
-	modelResolution = static_cast<float> (compute_cloud_resolution(model.makeShared()));
-	sceneResolution = static_cast<float> (compute_cloud_resolution(scene.makeShared()));
+				//calculate NormalEstimatorals
+				time_meas();
+				NormalEstimator.model = model;
+				NormalEstimator.scene = scene;
+				NormalEstimator.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
+				NormalEstimator.removeNaNNormals();
+				model = NormalEstimator.model;
+				scene = NormalEstimator.scene;
+				time_meas("normal estimation");
 
-	//calculate NormalEstimatorals
-	time_meas();
-	NormalEstimator.model = model;
-	NormalEstimator.scene = scene;
-	NormalEstimator.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
-	NormalEstimator.removeNaNNormals();
-	model = NormalEstimator.model;
-	scene = NormalEstimator.scene;
-	time_meas("normal estimation");
+				//Detect keypoints
+				time_meas();
+				KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution,
+					keypointdetector_threshold[threshold] ,keypointdetector_nof_neighbors[neighbor]);
+				time_meas("detecting keypoints");
 
-	//Detect keypoints
-	time_meas();
-	KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution, 0.7f);
-	time_meas("detecting keypoints");
+				//Calculate descriptor for each keypoint
+				time_meas();
+				Describer.normal = NormalEstimator;
+				Describer.keypointDetect = KeypointDetector;
+				Describer.model_ = model;
+				Describer.scene_ = scene;
+				Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
+				time_meas("calculating descriptor");
 
-	//Calculate descriptor for each keypoint
-	time_meas();
-	Describer.normal = NormalEstimator;
-	Describer.keypointDetect = KeypointDetector;
-	Describer.model_ = model;
-	Describer.scene_ = scene;
-	Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
-	time_meas("calculating descriptor");
+				//Matching
+				time_meas();
+				float c_threshold = 1.0f;
+				Matcher.desc = Describer;
+				Matcher.calculateCorrespondences(c_threshold);
+				time_meas("matching");
 
-	float c_threshold = 1.0f;
+				// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
+				RansacRejector.setMaximumIterations(1000);
+				ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
+				Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
+				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
+				pcl::transformPointCloud(model, model, transformation_matrix);
 
-	for (int j = 1; j < 2; ++j) {
-		c_threshold += 0.01f;
-		if (c_threshold > 1) {
-			c_threshold = 1;
-		}
-		else {
-			c_threshold = c_threshold;
-		}
-		//Matching
-		time_meas();
-		Matcher.desc = Describer;
-		Matcher.calculateCorrespondences(c_threshold);
-		time_meas("matching");
-		if (Matcher.corresp.size() == 0) { continue; }
-		else {
-#if 1
-			// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-			RansacRejector.setMaximumIterations(1000);
-			ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
-			Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
-			pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
-			pcl::transformPointCloud(model, model, transformation_matrix);
-			// Iterative closest Point ICP
-			transformation_matrix = icp(model, scene);
-			pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
-			pcl::transformPointCloud(model, model, transformation_matrix);
-#else
-			pcl::Correspondences corr = match.corresp;
-#endif
+				// Iterative closest Point ICP
+				transformation_matrix = icp(model, scene);
+				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
+				pcl::transformPointCloud(model, model, transformation_matrix);
 
-			//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
-			std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
-			float distance_threshold = shotRadius_ * modelResolution / 2;
-			pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
-			print_results(true_positives, KeypointDetector);
+				//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
+				std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
+				float distance_threshold = shotRadius_ * modelResolution / 2;
+				pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+				print_results(true_positives, KeypointDetector);
 
-			//Enable if evaluation according to Guo et al.
+				//Enable if evaluation according to Guo et al.
 #if 0
 			//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
-			pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+				pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
 
-			//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
-			pr_filename = "../../../../PR/Guo/" + model_name + "_to_" + scene_name + ".csv";
-			std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
-			filehandler.writeToFile(results, pr_filename);
-			print_results(true_positives, KeypointDetector);
+				//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
+				pr_filename = "../../../../PR/Guo/" + model_name + "_to_" + scene_name + ".csv";
+				std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
+				filehandler.writeToFile(results, pr_filename);
+				print_results(true_positives, KeypointDetector);
 #endif
-			//Enable if evaluation according to Buch et al.
-#if 0
-			accumulate_keypoints(KeypointDetector);
-			std::string results = concatenate_distances(euclidean_distance);
-			filehandler.writeToFile(results, pr_filename);
+				//Enable if evaluation according to Buch et al.
+#if 1
+				accumulate_keypoints(KeypointDetector);
+				std::string results = concatenate_distances(euclidean_distance);
+				filehandler.writeToFile(results, pr_filename);
 #endif
+
+				distance_threshold = shotRadius_ * modelResolution / 2;
+				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+				filehandler.writeToFile(NOF_keypoints, pr_filename);
+				NOF_keypoints = "";
+				accumulated_keypoints = 0;
+				corr.clear();
+			}
 		}
 	}
-	//float distance_threshold = shotRadius_ * modelResolution / 2;
-	//std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-	//filehandler.writeToFile(NOF_keypoints, pr_filename);
-
-
-
 //Enable if the visualization module should be used
-#if 1
+#if 0
 	//
 	// VISUALIZATION MODULE
 	//

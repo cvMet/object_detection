@@ -8,13 +8,14 @@ class Normals
 public:
 	pcl::PointCloud<pcl::Normal> modelNormals_, sceneNormals_;
 	pcl::PointCloud<pcl::PointXYZ> model, scene;
+
 	void calculateNormals(float radiusModel, float radiusScene)
 	{
 		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normalEstimation;
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
 		normalEstimation.setSearchMethod(kdtree);
 		// Set coordinates of viewpoint (x,y,z)
-		normalEstimation.setViewPoint(0, 0, 0.6);
+		normalEstimation.setViewPoint(0, 0, 0.36);
 		//Estimate Model Normals
 		normalEstimation.setRadiusSearch(radiusModel);
 		normalEstimation.setInputCloud(model.makeShared());
