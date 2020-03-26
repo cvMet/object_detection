@@ -302,10 +302,12 @@ int main(int argc, char* argv[])
 
 	string model_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
 	string scene_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
+	string save_directory = "../../../../PR/Buch/Automated/iss";
 	get_all_file_names(model_directory, ".ply", model_names);
 	get_all_file_names(scene_directory, ".ply", scene_names);
 	//string model_filename = model_directory + "/" + model_names[0].string();
 	string model_filename = "../../../../clouds/Datensets/20_03_20/SC/0_Tran/SensorCase_0_0_0_0.ply";
+
 	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
 		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
 			for (int scene_number = 0; scene_number < scene_names.size(); ++scene_number) {
@@ -319,9 +321,9 @@ int main(int argc, char* argv[])
 				int extension_pos = scene_filename.find(".ply", 0);
 				string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
 				string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
-				string pr_filename = "../../../../PR/Buch/Automated/iss"	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) + "/th"
-																			+ std::to_string(keypointdetector_threshold[threshold]).substr(0,3) + "/" 
-																			+ model_identifier + "_to_" + scene_identifier + ".csv";
+				string pr_filename = save_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) + "/th"
+													+ std::to_string(keypointdetector_threshold[threshold]).substr(0,3) + "/" 
+													+ model_identifier + "_to_" + scene_identifier + ".csv";
 				std::string model_fileformat = get_fileformat(model_filename);
 				std::string scene_fileformat = get_fileformat(scene_filename);
 
@@ -348,8 +350,8 @@ int main(int argc, char* argv[])
 
 				//Calculate descriptor for each keypoint
 				time_meas();
-				Describer.normal = NormalEstimator;
-				Describer.keypointDetect = KeypointDetector;
+				Describer.NormalEstimator = NormalEstimator;
+				Describer.KeypointDetector = KeypointDetector;
 				Describer.model_ = model;
 				Describer.scene_ = scene;
 				Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
