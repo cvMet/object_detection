@@ -1,8 +1,6 @@
 %The following script generates the PR-Curve based on the proposition of
 %buch et al. All matches of a dataset (containing several models and scenes)
-%are collected in one array. While traversing the sorted array PR-value
-%pairs are computed continuously. These values are used to draw the
-%PR-curve.
+%are plotted in one graph as individual curves
 clear all;
 directory = '..\PR\Buch\Automated\';
 folders = dir(directory);
