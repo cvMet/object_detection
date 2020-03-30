@@ -332,7 +332,7 @@ int main(int argc, char* argv[])
 				modelResolution = static_cast<float> (compute_cloud_resolution(model.makeShared()));
 				sceneResolution = static_cast<float> (compute_cloud_resolution(scene.makeShared()));
 
-				//calculate NormalEstimatorals
+				//Estimate Normals
 				time_meas();
 				NormalEstimator.model = model;
 				NormalEstimator.scene = scene;
