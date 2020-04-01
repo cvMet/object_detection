@@ -4,7 +4,7 @@
 %pairs are computed continuously. These values are used to draw the
 %PR-curve.
 clear all;
-rootdir = '..\PR\Buch\Automated\20_03_20\Gipfeli\2d_filtered';
+rootdir = '..\PR\Buch\Automated\20_03_20\Gipfeli\unfiltered';
 folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
 marker_index = 1;
 NOF_colors = 7;
@@ -14,13 +14,12 @@ y_axis = 0.4;
 stepsize = 1;
 keyword_transformation = 'rot';
 keyword_object = 'Gipfeli';
-
+PR_graph_path = strcat(rootdir,'\',keyword_object,'_',keyword_transformation,'_','PR_merged.png');
 for folder = 1:length(folder_list)
     NOF_keypoints = 0;
     NNDR = [];
     euclidean_distance = [];
     files = dir(strcat(rootdir,'\', folder_list(folder).name, '\*.csv'));
-    save_name = strcat(rootdir,'\', folder_list(folder).name, '\',keyword_object,keyword_transformation,'PR_merged.png');
     %load all matches into one array
     for file = 1:length(files)
         filename = strcat(files(file).folder, '\', files(file).name)
@@ -99,4 +98,4 @@ for folder = 1:length(folder_list)
     
 end
 legend('show');
-saveas(gcf,save_name)
+saveas(gcf,PR_graph_path);

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef VOX_H
-#define VOX_H
+#ifndef KEYPOINTDETECTOR_H
+#define KEYPOINTDETECTOR_H
 
 #include <pcl/point_cloud.h>
 #include <pcl/keypoints/iss_3d.h>
