@@ -1,0 +1,39 @@
+suport_radius,35.000000
+points_model_cloud,10756.000000
+points_scene_cloud,6945.000000
+model_resolution,0.001622
+scene_resolution,0.001820
+model_keypoints,166.000000
+scene_keypoints,89.000000
+normal estimation,0.328000
+detecting keypoints,0.377000
+calculating descriptor,0.498000
+matching,0.003000
+Ransac Rejection,0.022000
+ICP,0.191000
+suport_radius,35.000000
+points_model_cloud,3539.000000
+points_scene_cloud,2167.000000
+model_resolution,0.001614
+scene_resolution,0.001636
+model_keypoints,49.000000
+scene_keypoints,20.000000
+normal estimation,0.105000
+detecting keypoints,0.151000
+calculating descriptor,0.145000
+matching,0.001000
+Ransac Rejection,0.024000
+ICP,0.102000
+suport_radius,35.000000
+points_model_cloud,3574.000000
+points_scene_cloud,2168.000000
+model_resolution,0.001288
+scene_resolution,0.001330
+model_keypoints,71.000000
+scene_keypoints,34.000000
+normal estimation,0.053000
+detecting keypoints,0.074000
+calculating descriptor,0.101000
+matching,0.001000
+Ransac Rejection,0.028000
+ICP,0.081000

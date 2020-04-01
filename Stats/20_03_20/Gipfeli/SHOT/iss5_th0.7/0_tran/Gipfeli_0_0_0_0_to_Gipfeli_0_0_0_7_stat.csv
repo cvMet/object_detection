@@ -1,0 +1,13 @@
+suport_radius,35.000000
+points_model_cloud,4538.000000
+points_scene_cloud,4472.000000
+model_resolution,0.000906
+scene_resolution,0.000977
+model_keypoints,95.000000
+scene_keypoints,66.000000
+normal estimation,0.083000
+detecting keypoints,0.099000
+calculating descriptor,0.120000
+matching,0.001000
+Ransac Rejection,0.017000
+ICP,0.071000

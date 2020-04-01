@@ -4,16 +4,16 @@
 %pairs are computed continuously. These values are used to draw the
 %PR-curve.
 clear all;
-rootdir = '..\PR\Buch\Automated\20_03_20';
+rootdir = '..\PR\Buch\Automated\20_03_20\Gipfeli\2d_filtered';
 folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
 marker_index = 1;
 NOF_colors = 7;
 plot_count = 1;
-x_axis = 0.8;
-y_axis = 0.3;
+x_axis = 0.4;
+y_axis = 0.4;
 stepsize = 1;
-keyword_transformation = 'tran';
-keyword_object = 'WhiteBottle';
+keyword_transformation = 'rot';
+keyword_object = 'Gipfeli';
 
 for folder = 1:length(folder_list)
     NOF_keypoints = 0;
@@ -58,10 +58,10 @@ for folder = 1:length(folder_list)
             fp = fp + 1;
             %ugly workaround to inore the first 4 values if they should
             %lead to a PR graph starting with precison = 0
-            if(i == 1 | i == 2| i == 3 | i == 4)
-                fp = 0;
-                continue
-            end
+%             if(i == 1 | i == 2| i == 3 | i == 4)
+%                 fp = 0;
+%                 continue
+%             end
         end
         %Define granularity of the curve by determing step size
         if(mod(i, stepsize) == 0)

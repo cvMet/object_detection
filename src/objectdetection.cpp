@@ -150,6 +150,23 @@ std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::Point
 	return distance;
 }
 
+vector<tuple<string, float>> assemble_stats(vector<tuple<string, float>> processing_times, pcl::PointCloud<PointType> model, pcl::PointCloud<PointType> scene, float modelResolution, float sceneResolution, KeypointDetector& Detector) {
+	vector<tuple<string, float>> stats;
+
+	stats.push_back(make_tuple("suport_radius", float(supportRadius_)));
+	stats.push_back(make_tuple("points_model_cloud", float(model.points.size())));
+	stats.push_back(make_tuple("points_scene_cloud", float(scene.points.size())));
+	stats.push_back(make_tuple("model_resolution", float(modelResolution)));
+	stats.push_back(make_tuple("scene_resolution", float(sceneResolution)));
+	stats.push_back(make_tuple("model_keypoints", float(Detector.modelKeypoints_.size())));
+	stats.push_back(make_tuple("scene_keypoints", float(Detector.sceneKeypoints_.size())));
+
+	for (int i = 0; i < processing_times.size(); ++i) {
+		stats.push_back(processing_times[i]);
+	}
+	return stats;
+}
+
 string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold) {
 	std::string data = "";
 	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
@@ -161,6 +178,15 @@ string concatenate_results(KeypointDetector& Detector, std::vector<float>& eucli
 	for (int i = 0; i < corr.size(); ++i)
 	{
 		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
+		data += "\n";
+	}
+	return data;
+}
+
+string create_printable_stats(vector<tuple<string, float>> stats) {
+	std::string data = "";
+	for (int i = 0; i < stats.size(); ++i) {
+		data += get<0>(stats[i]) + ',' + std::to_string(get<1>(stats[i]));
 		data += "\n";
 	}
 	return data;
@@ -243,7 +269,7 @@ void time_meas() {
 	}
 }
 
-void time_meas(string action) {
+tuple<string, float> time_meas(string action) {
 	double cpuTimeUsed;
 	if (!running){
 		running = true;
@@ -252,9 +278,10 @@ void time_meas(string action) {
 	else {
 		end_time = clock();
 		running = false;
-		cpuTimeUsed = ((double)(end_time - start)) / CLOCKS_PER_SEC;
+		cpuTimeUsed = ((double)end_time - (double)start) / CLOCKS_PER_SEC;
 		std::cout << "Time taken for: " + action + " " << (double)cpuTimeUsed << std::endl;
 	}
+	return make_tuple(action, cpuTimeUsed);
 }
 
 void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector) {
@@ -286,6 +313,7 @@ void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path
 	}
 }
 
+
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
@@ -300,30 +328,36 @@ int main(int argc, char* argv[])
 	vector<fs::path> model_names;
 	vector<fs::path> scene_names;
 
-	string model_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
-	string scene_directory = "../../../../clouds/Datensets/20_03_20/SC/0_Tran";
+	string model_directory = "../../../../clouds/Datensets/20_03_20/G/2d_filtered/30_Rot";
+	string scene_directory = "../../../../clouds/Datensets/20_03_20/G/2d_filtered/30_Rot";
 	string save_directory = "../../../../PR/Buch/Automated/iss";
+	string stats_directory = "../../../../Stats/iss";
 	get_all_file_names(model_directory, ".ply", model_names);
 	get_all_file_names(scene_directory, ".ply", scene_names);
-	//string model_filename = model_directory + "/" + model_names[0].string();
-	string model_filename = "../../../../clouds/Datensets/20_03_20/SC/0_Tran/SensorCase_0_0_0_0.ply";
+	string model_filename = model_directory + "/" + model_names[0].string();
+	//string model_filename = "../../../../clouds/Datensets/20_03_20/G/0_Tran/Gipfeli_0_0_0_0.ply";
 
 	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
 		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
 			for (int scene_number = 0; scene_number < scene_names.size(); ++scene_number) {
+				vector<tuple<string, float>> processing_times;
+				vector<tuple<string, float>> stats;
 				Normals NormalEstimator;
 				KeypointDetector KeypointDetector;
 				Descriptor Describer;
 				Matching Matcher;
 
 				string scene_filename = scene_directory + "/" + scene_names[scene_number].string();
-				int name_pos = scene_filename.find("SensorCase", 0);
+				int name_pos = scene_filename.find("Gipfeli", 0);
 				int extension_pos = scene_filename.find(".ply", 0);
 				string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
 				string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
-				string pr_filename = save_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) + "/th"
-													+ std::to_string(keypointdetector_threshold[threshold]).substr(0,3) + "/" 
-													+ model_identifier + "_to_" + scene_identifier + ".csv";
+				string pr_filename = save_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) 
+													+ "/th" + std::to_string(keypointdetector_threshold[threshold]).substr(0,3) 
+													+ "/"	+ model_identifier + "_to_" + scene_identifier + ".csv";
+				string stat_filename = stats_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) 
+														+ "/th"	+ std::to_string(keypointdetector_threshold[threshold]).substr(0, 3) 
+														+ "/" + model_identifier + "_to_" + scene_identifier + "_stat.csv";
 				std::string model_fileformat = get_fileformat(model_filename);
 				std::string scene_fileformat = get_fileformat(scene_filename);
 
@@ -340,13 +374,13 @@ int main(int argc, char* argv[])
 				NormalEstimator.removeNaNNormals();
 				model = NormalEstimator.model;
 				scene = NormalEstimator.scene;
-				time_meas("normal estimation");
+				processing_times.push_back(time_meas("normal estimation"));
 
 				//Detect keypoints
 				time_meas();
 				KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution,
 					keypointdetector_threshold[threshold] ,keypointdetector_nof_neighbors[neighbor]);
-				time_meas("detecting keypoints");
+				processing_times.push_back(time_meas("detecting keypoints"));
 
 				//Calculate descriptor for each keypoint
 				time_meas();
@@ -355,26 +389,30 @@ int main(int argc, char* argv[])
 				Describer.model_ = model;
 				Describer.scene_ = scene;
 				Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
-				time_meas("calculating descriptor");
+				processing_times.push_back(time_meas("calculating descriptor"));
 
 				//Matching
 				time_meas();
 				float c_threshold = 1.0f;
 				Matcher.desc = Describer;
 				Matcher.calculateCorrespondences(c_threshold);
-				time_meas("matching");
+				processing_times.push_back(time_meas("matching"));
 
 				// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
+				time_meas();
 				RansacRejector.setMaximumIterations(1000);
 				ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
 				Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
 				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
 				pcl::transformPointCloud(model, model, transformation_matrix);
+				processing_times.push_back(time_meas("Ransac Rejection"));
 
 				// Iterative closest Point ICP
+				time_meas();
 				transformation_matrix = icp(model, scene);
 				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
 				pcl::transformPointCloud(model, model, transformation_matrix);
+				processing_times.push_back(time_meas("ICP"));
 
 				//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
 				std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
@@ -397,10 +435,12 @@ int main(int argc, char* argv[])
 #if 1
 				accumulate_keypoints(KeypointDetector);
 				std::string results = concatenate_distances(euclidean_distance);
+				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
+				std::string statistics = create_printable_stats(stats);
 				filehandler.writeToFile(results, pr_filename);
-#endif
+				filehandler.writeToFile(statistics, stat_filename);
 
-				distance_threshold = shotRadius_ * modelResolution / 2;
+#endif
 				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
 				filehandler.writeToFile(NOF_keypoints, pr_filename);
 				NOF_keypoints = "";
