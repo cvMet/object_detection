@@ -54,12 +54,12 @@ public:
 		{
 			for (int j = 0; j < columns; ++j)
 			{
+				float XcDx = (j - columns / 2) * x_pixel;
+				float YcDy = (i - rows / 2) * y_pixel;
 				//make sure the cloud is in m since the csv file is in mm
-				normalize = 0.001 / sqrt(pow(((j - columns / 2) * x_pixel), 2) +
-					pow(((i - rows / 2) * y_pixel), 2) +
-					pow(f, 2));
-				point_cloud.points[ind].x = normalize * distance_array[i][j] * (j - columns / 2) * x_pixel;
-				point_cloud.points[ind].y = normalize * distance_array[i][j] * (i - rows / 2) * y_pixel;
+				normalize = 0.001 / sqrt(pow(XcDx, 2) + pow(YcDy, 2) + pow(f, 2));
+				point_cloud.points[ind].x = normalize * distance_array[i][j] * XcDx;
+				point_cloud.points[ind].y = normalize * distance_array[i][j] * YcDy;
 				point_cloud.points[ind].z = normalize * distance_array[i][j] * f;
 				++ind;
 			}
@@ -120,45 +120,6 @@ public:
 		return output;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ> remove_background(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background, float threshold) {
-		pcl::PointCloud<pcl::PointXYZ> output_cloud;
-		float z;
-		PointXYZ point;
-		for (int i = 0; i < point_cloud.size(); ++i) {
-			z = background.at(i).z - point_cloud.at(i).z;
-			if (z > threshold) {
-				point.x = point_cloud.at(i).x;
-				point.y = point_cloud.at(i).y;
-				point.z = z;
-				output_cloud.push_back(point);
-			}
-			else {
-				z = 0;
-			}
-		}
-		return output_cloud;
-	}
-
-	pcl::PointCloud<pcl::PointXYZ> remove_bkgr(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background) {
-		pcl::PointCloud<pcl::PointXYZ> output_cloud;
-		float z;
-		PointXYZ point;
-		//subtract background from image
-		for (int i = 0; i < point_cloud.size(); ++i) {
-			z = background.at(i).z - point_cloud.at(i).z;
-			if (z < 0.002) { //|| i->z < mean_z
-				z = 0.02;
-			}
-			else {
-				point.x = point_cloud.at(i).x;
-				point.y = point_cloud.at(i).y;
-				point.z = z;
-				output_cloud.push_back(point);
-			}
-		}
-		return output_cloud;
-	}
-
 	pcl::PointCloud<pcl::PointXYZ> remove_outliers_mean(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float threshold) {
 		//threshold in m, how far away from mean points should be considered
 		pcl::PointCloud<pcl::PointXYZ> output;
@@ -184,20 +145,40 @@ public:
 		median.setWindowSize(window_size);
 		median.applyFilter(cloud);
 		std::vector<int> vec;
+		finalCloud = cloud;
 		pcl::removeNaNFromPointCloud(finalCloud, finalCloud, vec);
 		return finalCloud;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ> noise_filter(pcl::PointCloud<pcl::PointXYZ> cloud, float lowerBoundary) {
+	pcl::PointCloud<pcl::PointXYZ> noise_filter(pcl::PointCloud<pcl::PointXYZ> cloud, float noise_threshold) {
 		pcl::PointCloud<pcl::PointXYZ> finalCloud;
 		for (int i = 0; i < cloud.size(); ++i) {
-			if (cloud.at(i).z > lowerBoundary) {
+			if (cloud.at(i).z > noise_threshold) {
 				finalCloud.push_back(cloud.at(i));
 			}
 		}
 		std::vector<int> vec;
 		pcl::removeNaNFromPointCloud(finalCloud, finalCloud, vec);
 		return finalCloud;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ> remove_background(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background, float threshold) {
+		pcl::PointCloud<pcl::PointXYZ> output_cloud;
+		float z;
+		PointXYZ point;
+		for (int i = 0; i < point_cloud.size(); ++i) {
+			z = background.at(i).z - point_cloud.at(i).z;
+			if (z > threshold) {
+				point.x = point_cloud.at(i).x;
+				point.y = point_cloud.at(i).y;
+				point.z = z;
+				output_cloud.push_back(point);
+			}
+			else {
+				z = 0;
+			}
+		}
+		return output_cloud;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ> roi_filter(pcl::PointCloud<pcl::PointXYZ> cloud, string dimension, float lower_limit, float higher_limit) {
@@ -306,5 +287,6 @@ public:
 			std::this_thread::sleep_for(100ms);
 		}
 	}
+
 };
 #endif

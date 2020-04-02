@@ -21,6 +21,7 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include "../include/keypointdetector.h"
 #include "../include/matching.h"
 #include "../include/filehandler.h"
+#include "../include/cloud_creator.h"
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/registration/icp.h>
 #include <pcl/surface/mls.h>
@@ -42,6 +43,7 @@ clock_t start, end_time;
 pcl::Correspondences corr;
 bool running = false;
 int accumulated_keypoints = 0;
+const int rows = 240, columns = 320;
 
 //Descriptor Parameters
 float shotRadius_ = 35;
@@ -49,8 +51,10 @@ float fpfhRadius_ = 20;
 
 #if isshot
 const float supportRadius_ = shotRadius_;
+string descriptor = "SHOT";
 #else
 const float supportRadius_ = fpfhRadius_;
+string descriptor = "FPFH";
 #endif
 
 Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
@@ -87,20 +91,6 @@ pcl::PointCloud<PointType> load_3dmodel(string filename, string fileformat) {
 			std::cout << "Error loading model cloud." << std::endl;
 			return (temp_cloud);
 		}
-	}
-	else if (fileformat == "pcd") { //if File is a pointcloud in pcd format
-		std::cout << "Filename read" << endl;
-		if (pcl::io::loadPCDFile(filename, temp_cloud) == -1)
-		{
-			std::cout << "Error loading model cloud." << std::endl;
-			return (temp_cloud);
-		}
-	}
-	else if (fileformat == "png") { //if depth image is stored as a png file (T-LESS dataset)
-		char* file;
-		FileHandler filehandler;
-		file = &filename[0];
-		temp_cloud = filehandler.getCloudFromPNG(file);
 	}
 	else {
 		std::cout << "Unknown model file type. Check if there are any dots in the files path." << endl;
@@ -317,29 +307,74 @@ void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
-	FileHandler filehandler;
+	FileHandler FileHandler;
+	CloudCreator CloudCreator;
 
-	float modelResolution, sceneResolution;
-	vector<float> keypointdetector_threshold = { 0.7f, 0.9f };
-	vector<int> keypointdetector_nof_neighbors = {3, 5};
+	//Clouds used during cloud generation
+	pcl::PointCloud<pcl::PointXYZ> model_cloud;
+	pcl::PointCloud<pcl::PointXYZ> background_cloud;
+	pcl::PointCloud<pcl::PointXYZ> filtered_model;
+	pcl::PointCloud<pcl::PointXYZ> filtered_background;
+	pcl::PointCloud<pcl::PointXYZ> final_cloud;
 
+	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
-	vector<fs::path> model_names;
-	vector<fs::path> scene_names;
 
-	string model_directory = "../../../../clouds/Datensets/20_03_20/G/2d_filtered/30_Rot";
-	string scene_directory = "../../../../clouds/Datensets/20_03_20/G/2d_filtered/30_Rot";
-	string save_directory = "../../../../PR/Buch/Automated/iss";
-	string stats_directory = "../../../../Stats/iss";
-	get_all_file_names(model_directory, ".ply", model_names);
-	get_all_file_names(scene_directory, ".ply", scene_names);
-	string model_filename = model_directory + "/" + model_names[0].string();
-	//string model_filename = "../../../../clouds/Datensets/20_03_20/G/0_Tran/Gipfeli_0_0_0_0.ply";
+	vector<fs::path> model_depth_names;
+	vector<fs::path> background_depth_names;
+	vector<fs::path> cloud_names;
+
+	vector<float> keypointdetector_threshold = { 0.7f, 0.9f };
+	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
+
+	float modelResolution, sceneResolution;
+	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/30_Rot/Model";
+	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/30_Rot/Background";
+	string cloud_directory = "../../../../clouds/20_03_20/G/3d_filtered/30_Rot";
+	string depth_extension = ".txt";
+
+	string pr_root = "../../../../PR/Buch";
+	string stats_root = "../../../../stats";
+	string object = "Gipfeli";
+	string dataset = "20_03_20";
+	string preprocessor_mode = "unfiltered";
+	string transformation = "0_rot";
+
+	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
+	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
+
+	//Define if clouds need to be generated first
+#if 1
+	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
+	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
+	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
+	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
+
+	for (int i = 0; i < model_depth_names.size(); ++i) {
+		std::string model_depth_filename = model_depth_directory + "/" + model_depth_names[i].string();
+		time_meas();
+		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
+		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
+		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
+		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.015f);
+
+		time_meas();
+		string filename = cloud_directory + "/" + model_depth_names[i].string();
+		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+		pcl::io::savePLYFileASCII(substr, final_cloud);
+	}
+#endif
+
+	//define enable automated detection process
+#if 0
+	get_all_file_names(cloud_directory, ".ply", cloud_names);
+	string model_filename = cloud_directory + "/" + cloud_names[0].string();
+	//string model_filename = "../../../../clouds/20_03_20/G/0_Tran/Gipfeli_0_0_0_0.ply";
 
 	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
 		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
-			for (int scene_number = 0; scene_number < scene_names.size(); ++scene_number) {
+			for (int scene_number = 0; scene_number < cloud_names.size(); ++scene_number) {
 				vector<tuple<string, float>> processing_times;
 				vector<tuple<string, float>> stats;
 				Normals NormalEstimator;
@@ -347,17 +382,22 @@ int main(int argc, char* argv[])
 				Descriptor Describer;
 				Matching Matcher;
 
-				string scene_filename = scene_directory + "/" + scene_names[scene_number].string();
+				string scene_filename = cloud_directory + "/" + cloud_names[scene_number].string();
 				int name_pos = scene_filename.find("Gipfeli", 0);
 				int extension_pos = scene_filename.find(".ply", 0);
 				string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
 				string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
-				string pr_filename = save_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) 
-													+ "/th" + std::to_string(keypointdetector_threshold[threshold]).substr(0,3) 
+				string pr_filename = pr_root		+ "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+													+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
+													+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0,3)
+													+ "/" + transformation
 													+ "/"	+ model_identifier + "_to_" + scene_identifier + ".csv";
-				string stat_filename = stats_directory	+ std::to_string(keypointdetector_nof_neighbors[neighbor]) 
-														+ "/th"	+ std::to_string(keypointdetector_threshold[threshold]).substr(0, 3) 
-														+ "/" + model_identifier + "_to_" + scene_identifier + "_stat.csv";
+				string stats_filename = stats_root	+ "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+													+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor]) 
+													+ "_th"	+ std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+													+ "/" + transformation
+													+ "/" + model_identifier + "_to_" + scene_identifier + "_stats.csv";
+
 				std::string model_fileformat = get_fileformat(model_filename);
 				std::string scene_fileformat = get_fileformat(scene_filename);
 
@@ -437,18 +477,20 @@ int main(int argc, char* argv[])
 				std::string results = concatenate_distances(euclidean_distance);
 				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
 				std::string statistics = create_printable_stats(stats);
-				filehandler.writeToFile(results, pr_filename);
-				filehandler.writeToFile(statistics, stat_filename);
+				FileHandler.writeToFile(results, pr_filename);
+				FileHandler.writeToFile(statistics, stats_filename);
 
 #endif
 				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-				filehandler.writeToFile(NOF_keypoints, pr_filename);
+				FileHandler.writeToFile(NOF_keypoints, pr_filename);
 				NOF_keypoints = "";
 				accumulated_keypoints = 0;
 				corr.clear();
 			}
 		}
 	}
+#endif
+
 //Enable if the visualization module should be used
 #if 0
 	//
@@ -494,5 +536,6 @@ int main(int argc, char* argv[])
 		std::this_thread::sleep_for(100ms);
 	}
 #endif
+
 	return 0;
 }

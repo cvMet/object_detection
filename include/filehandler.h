@@ -27,7 +27,7 @@ public:
 			return a;
 		}
 		std::string line = "";
-		std::vector<std::vector<float>> pointcloud(rows, std::vector<float>(columns, 0));
+		std::vector<std::vector<float>> distance_array(rows, std::vector<float>(columns, 0));
 		int indRow = 0;
 		std::string word;
 		while (getline(file, line)) {
@@ -35,14 +35,14 @@ public:
 			int indCol = 0;
 			while (std::getline(s, word, ',')) {
 				if (std::stof(word) < 3000) { //we assume that the distance is not greater than 3m
-					pointcloud[(indRow % rows)][indCol] += std::stof(word);
+					distance_array[(indRow % rows)][indCol] += std::stof(word);
 				}
 				++indCol;
 			}
 			++indRow;
 		}
 		file.close();
-		return pointcloud;
+		return distance_array;
 	}
 	
 };
