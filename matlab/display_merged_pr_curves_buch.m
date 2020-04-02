@@ -4,13 +4,13 @@
 %pairs are computed continuously. These values are used to draw the
 %PR-curve.
 clear all;
-rootdir = '..\PR\Buch\Automated\20_03_20\Gipfeli\unfiltered';
+rootdir = '..\PR\Buch\20_03_20\Gipfeli\3d_filtered';
 folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
 marker_index = 1;
 NOF_colors = 7;
 plot_count = 1;
-x_axis = 0.4;
-y_axis = 0.4;
+x_axis = 1;
+y_axis = 0.3;
 stepsize = 1;
 keyword_transformation = 'rot';
 keyword_object = 'Gipfeli';

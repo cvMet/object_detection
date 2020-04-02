@@ -226,55 +226,6 @@ public:
 		std::cout << "Point Cloud Size: " << cloud.size() << endl;
 	}
 
-	void create_result_dirs(string objectname) {
-		Tree DirectoryTree;
-		std::string root_dir = "C:/Users/admin/source/repos/objectdetection/PR/Buch/Automated/20_03_20/";
-
-		Tree::node* rootNode = DirectoryTree.newNode(objectname);
-		rootNode->child.push_back(DirectoryTree.newNode("SHOT"));
-		rootNode->child.push_back(DirectoryTree.newNode("FPFH"));
-		for (int i = 0; i < rootNode->child.size(); ++i) {
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss3_th0.7"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss3_th0.9"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss5_th0.7"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss5_th0.9"));
-			for (int j = 0; j < rootNode->child[i]->child.size(); ++j) {
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("0_rot"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("30_rot"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("0_tran"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("30_tran"));
-				for (int k = 0; k < rootNode->child[i]->child[j]->child.size(); ++k) {
-					boost::filesystem::create_directories(root_dir + rootNode->data + "/" + rootNode->child[i]->data + "/" + rootNode->child[i]->child[j]->data + "/" + rootNode->child[i]->child[j]->child[k]->data);
-				}
-			}
-		}
-	}
-
-	void create_stats_dirs(string objectname) {
-		Tree DirectoryTree;
-		std::string root_dir = "C:/Users/admin/source/repos/objectdetection/Stats/20_03_20/";
-
-		Tree::node* rootNode = DirectoryTree.newNode(objectname);
-		rootNode->child.push_back(DirectoryTree.newNode("SHOT"));
-		rootNode->child.push_back(DirectoryTree.newNode("FPFH"));
-		for (int i = 0; i < rootNode->child.size(); ++i) {
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss3_th0.7"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss3_th0.9"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss5_th0.7"));
-			rootNode->child[i]->child.push_back(DirectoryTree.newNode("iss5_th0.9"));
-			for (int j = 0; j < rootNode->child[i]->child.size(); ++j) {
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("0_rot"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("30_rot"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("0_tran"));
-				rootNode->child[i]->child[j]->child.push_back(DirectoryTree.newNode("30_tran"));
-				for (int k = 0; k < rootNode->child[i]->child[j]->child.size(); ++k) {
-					boost::filesystem::create_directories(root_dir + rootNode->data + "/" + rootNode->child[i]->data + "/" + rootNode->child[i]->child[j]->data + "/" + rootNode->child[i]->child[j]->child[k]->data);
-				}
-			}
-		}
-
-	}
-
 	void show_cloud(pcl::PointCloud<pcl::PointXYZ> cloud) {
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 		viewer->setBackgroundColor(0, 0, 0);

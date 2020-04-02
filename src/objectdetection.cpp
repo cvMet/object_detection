@@ -51,7 +51,7 @@ float fpfhRadius_ = 20;
 
 #if isshot
 const float supportRadius_ = shotRadius_;
-string descriptor = "SHOT";
+string descriptor = "B_SHOT";
 #else
 const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
@@ -173,7 +173,7 @@ string concatenate_results(KeypointDetector& Detector, std::vector<float>& eucli
 	return data;
 }
 
-string create_printable_stats(vector<tuple<string, float>> stats) {
+string create_writable_stats(vector<tuple<string, float>> stats) {
 	std::string data = "";
 	for (int i = 0; i < stats.size(); ++i) {
 		data += get<0>(stats[i]) + ',' + std::to_string(get<1>(stats[i]));
@@ -329,45 +329,65 @@ int main(int argc, char* argv[])
 	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
 
 	float modelResolution, sceneResolution;
-	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/30_Rot/Model";
-	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/30_Rot/Background";
-	string cloud_directory = "../../../../clouds/20_03_20/G/3d_filtered/30_Rot";
+
+	//Paths used during cloudgen
+	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/0_Rot/Model";
+	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/0_Rot/Background";
 	string depth_extension = ".txt";
 
+	//cloudgen & objectdetection
+	string cloud_directory = "../../../../clouds/20_03_20/G/3d_filtered/30_rot";
+
+	//path used during objectdetection
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
 	string object = "Gipfeli";
 	string dataset = "20_03_20";
-	string preprocessor_mode = "unfiltered";
-	string transformation = "0_rot";
+	string preprocessor_mode = "3d_filtered";
+	string transformation = "30_rot";
 
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
 	//Define if clouds need to be generated first
-#if 1
+#if 0
+
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
 
+
 	for (int i = 0; i < model_depth_names.size(); ++i) {
+		vector<tuple<string, float>> creation_stats;
 		std::string model_depth_filename = model_depth_directory + "/" + model_depth_names[i].string();
-		time_meas();
-		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
-		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
-		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
-		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.015f);
 
 		time_meas();
+		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
+		creation_stats.push_back(time_meas("time_textToDistance"));
+		time_meas();
+		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
+		creation_stats.push_back(time_meas("time_distanceToCloud"));
+		time_meas();
+		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
+		creation_stats.push_back(time_meas("time_median_filter"));
+		time_meas();
+		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.015f);
+		creation_stats.push_back(time_meas("time_backgroundRemoval"));
+
+
 		string filename = cloud_directory + "/" + model_depth_names[i].string();
 		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+		string statistics = create_writable_stats(creation_stats);
+		string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 		pcl::io::savePLYFileASCII(substr, final_cloud);
+		FileHandler.writeToFile(statistics, stats_filename);
 	}
+
 #endif
 
 	//define enable automated detection process
-#if 0
+#if 1
 	get_all_file_names(cloud_directory, ".ply", cloud_names);
 	string model_filename = cloud_directory + "/" + cloud_names[0].string();
 	//string model_filename = "../../../../clouds/20_03_20/G/0_Tran/Gipfeli_0_0_0_0.ply";
@@ -476,7 +496,7 @@ int main(int argc, char* argv[])
 				accumulate_keypoints(KeypointDetector);
 				std::string results = concatenate_distances(euclidean_distance);
 				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
-				std::string statistics = create_printable_stats(stats);
+				std::string statistics = create_writable_stats(stats);
 				FileHandler.writeToFile(results, pr_filename);
 				FileHandler.writeToFile(statistics, stats_filename);
 
