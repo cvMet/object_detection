@@ -1,6 +1,6 @@
 clear all;
 %f = focal length of camera lens
-f = 0.6;
+f = 6e-3;
 zero_vector = [0 0 0]';
 %(px,py) = principal point offset (coordinates)
 px = 0;
@@ -20,16 +20,19 @@ K =[ax,0,x0;
 %P = 3×4 camera projection matrix.
 P = [K, zero_vector];
 
-%External camera paramerters
-% R = Rotationsmatrix representing the orientation of the camera coordinate frame
-R =[1,0,0;
-    0,1,0;
-    0,0,1];
-% C = coordinates of the camera centre in world coordinate frame
-C =[1 1 1]';
-% t = translation vector
-t = -R*C;
+x = [-2.39999 -1.79999 431.63415];
+X = inv(P)*x;
 
-P = K * [R,t];
+% %External camera paramerters
+% % R = Rotationsmatrix representing the orientation of the camera coordinate frame
+% R =[1,0,0;
+%     0,1,0;
+%     0,0,1];
+% % C = coordinates of the camera centre in world coordinate frame
+% C =[1 1 1]';
+% % t = translation vector
+% t = -R*C;
+% 
+% P = K * [R,t];
 
 

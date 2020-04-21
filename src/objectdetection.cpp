@@ -316,6 +316,7 @@ int main(int argc, char* argv[])
 	pcl::PointCloud<pcl::PointXYZ> filtered_model;
 	pcl::PointCloud<pcl::PointXYZ> filtered_background;
 	pcl::PointCloud<pcl::PointXYZ> final_cloud;
+	pcl::PointCloud<pcl::PointXYZ> roi_cloud;
 
 	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> model;
@@ -325,38 +326,38 @@ int main(int argc, char* argv[])
 	vector<fs::path> background_depth_names;
 	vector<fs::path> cloud_names;
 
-	vector<float> keypointdetector_threshold = { 0.7f, 0.9f };
-	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
+	vector<float> keypointdetector_threshold = {0.7f };
+	vector<int> keypointdetector_nof_neighbors = {3 };
 
 	float modelResolution, sceneResolution;
 
 	//Paths used during cloudgen
-	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/0_Rot/Model";
-	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/Gipfeli/0_Rot/Background";
+	string model_depth_directory = "../../../../datasets/conveyor/raw_depth/gipfeli/0_tran/model";
+	string background_depth_directory = "../../../../datasets/conveyor/raw_depth/gipfeli/0_tran/background";
 	string depth_extension = ".txt";
 
 	//cloudgen & objectdetection
-	string cloud_directory = "../../../../clouds/20_03_20/G/3d_filtered/30_rot";
+	string cloud_directory = "../../../../clouds/conveyor/g/3d_filtered/0_tran";
 
 	//path used during objectdetection
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
 	string object = "Gipfeli";
-	string dataset = "20_03_20";
+	string dataset = "conveyor";
 	string preprocessor_mode = "3d_filtered";
-	string transformation = "30_rot";
+	string transformation = "0_tran";
 
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
 	//Define if clouds need to be generated first
-#if 0
+#if 1
 
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
-
+	//CloudCreator.show_cloud(filtered_background);
 
 	for (int i = 0; i < model_depth_names.size(); ++i) {
 		vector<tuple<string, float>> creation_stats;
@@ -370,27 +371,28 @@ int main(int argc, char* argv[])
 		creation_stats.push_back(time_meas("time_distanceToCloud"));
 		time_meas();
 		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
-		creation_stats.push_back(time_meas("time_median_filter"));
+		//	CloudCreator.show_cloud(filtered_model);
+		creation_stats.push_back(time_meas("time_medianfilter"));
 		time_meas();
-		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.015f);
+		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.004f);
+
 		creation_stats.push_back(time_meas("time_backgroundRemoval"));
+		roi_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.125f);
 
-
-		string filename = cloud_directory + "/" + model_depth_names[i].string();
+		string filename = cloud_directory + "/" + background_depth_names[i].string();
 		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 		string statistics = create_writable_stats(creation_stats);
 		string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
-		pcl::io::savePLYFileASCII(substr, final_cloud);
+		pcl::io::savePLYFileASCII(substr, roi_cloud);
 		FileHandler.writeToFile(statistics, stats_filename);
 	}
-
 #endif
 
-	//define enable automated detection process
-#if 1
+//enable for automated detection process
+#if 0
 	get_all_file_names(cloud_directory, ".ply", cloud_names);
-	string model_filename = cloud_directory + "/" + cloud_names[0].string();
-	//string model_filename = "../../../../clouds/20_03_20/G/0_Tran/Gipfeli_0_0_0_0.ply";
+	//string model_filename = cloud_directory + "/" + cloud_names[0].string();
+	string model_filename = "../../../../clouds/conveyor/g/3d_filtered/0_tran/Gipfeli_2.ply";
 
 	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
 		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
