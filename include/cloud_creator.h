@@ -67,54 +67,46 @@ public:
 		return point_cloud;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ> remove_plane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float resolution) {
-		//find all the points within a point cloud that support a plane model and remove them
-		//from http://pointclouds.org/documentation/tutorials/planar_segmentation.php
-		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-		// Create the segmentation object
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-		// Optional
-		seg.setOptimizeCoefficients(false);
-		// Mandatory
-		seg.setModelType(pcl::SACMODEL_PLANE);
-		seg.setMethodType(pcl::SAC_RANSAC);
-		seg.setDistanceThreshold(resolution / 20);
-		seg.setInputCloud(cloud);
-		seg.segment(*inliers, *coefficients);
+	pcl::PointCloud<pcl::PointXYZ> segment_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool get_inlier, float resol) {
+		PointCloud<pcl::PointXYZ>::Ptr	cloud_liers(new PointCloud<pcl::PointXYZ>);
+		// Segment the ground
+		pcl::ModelCoefficients::Ptr plane(new pcl::ModelCoefficients);
+		pcl::PointIndices::Ptr 		inliers_plane(new pcl::PointIndices);
 
-		pcl::PointCloud<pcl::PointXYZ> output;
-		//if no inliers could be found return the input cloud
-		if (inliers->indices.size() == 0) {
-			output = *cloud;
+		// Make room for a plane equation (ax+by+cz+d=0)
+		plane->values.resize(4);
+
+		pcl::SACSegmentation<PointXYZ> seg;				// Create the segmentation object
+		seg.setOptimizeCoefficients(false);				// Optional
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setModelType(pcl::SACMODEL_PLANE);
+		seg.setDistanceThreshold(resol);
+		seg.setInputCloud(cloud);
+		seg.segment(*inliers_plane, *plane);
+
+		if (inliers_plane->indices.size() == 0) {
+			PCL_ERROR("Could not estimate a planar model for the given dataset.\n");
+		}
+		pcl::ExtractIndices<PointXYZ> extract;
+		extract.setInputCloud(cloud);
+		extract.setIndices(inliers_plane);
+		if (get_inlier) {
+			extract.setNegative(false);			// Extract the inliers
+			extract.filter(*cloud_liers);		// cloud_inliers contains the plane
 		}
 		else {
-			int j = 0;
-			for (int i = 0; i < cloud->size(); ++i) {
-				if (j < inliers->indices.size())
-				{
-					if (inliers->indices.at(j) == i) {
-						++j;
-					}
-					else {
-						output.push_back(cloud->at(i));
-					}
-				}
-				else {
-					continue;
-				}
-			}
+			extract.setNegative(true);				// Extract the outliers
+			extract.filter(*cloud_liers);		// cloud_outliers contains everything but the plane
 		}
-		return output;
+		return *cloud_liers;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ> remove_outliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
+	pcl::PointCloud<pcl::PointXYZ> remove_outliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int k) {
 		pcl::PointCloud<pcl::PointXYZ> output;
 		// Create the filtering object
-		//from: http://pointclouds.org/documentation/tutorials/statistical_outlier.php
 		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 		sor.setInputCloud(cloud);
-		sor.setMeanK(15);
+		sor.setMeanK(k);
 		sor.setStddevMulThresh(1.0);
 		sor.filter(output);
 		return output;
@@ -189,6 +181,8 @@ public:
 		pass.filter(cloud);
 		return cloud;
 	}
+
+	
 
 	double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 	{

@@ -25,26 +25,22 @@ public:
 		voxelgrid.filter(sceneKeypoints_);
 	}
 
-	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, pcl::PointCloud<pcl::Normal> normals, float model_resolution, float scene_resolution, float threshold, int neighbor) {
-		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
-		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ> issDetector;
+	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ>& out, pcl::PointCloud<pcl::PointXYZ> cloud, pcl::PointCloud<pcl::Normal> normals, float resolution, float threshold, int neighbor) {
+		//pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> issDetector;
 		issDetector.setNormals(normals.makeShared());
-		issDetector.setSearchMethod(tree);
-		issDetector.setSalientRadius(6 * model_resolution);
-		issDetector.setNonMaxRadius(4 * model_resolution);
+		//issDetector.setSearchMethod(tree);
+		issDetector.setSalientRadius(6 * resolution);
+		//nonMax radius set to 5mm since this is approx stddev of melexis camera
+		//issDetector.setNonMaxRadius(4 * resolution);
+		issDetector.setNonMaxRadius(0.005f);
 		issDetector.setThreshold21(threshold);
 		issDetector.setThreshold32(threshold);
 		issDetector.setMinNeighbors(neighbor);
 		issDetector.setNumberOfThreads(4);
-		issDetector.setInputCloud(model.makeShared());
-		issDetector.compute(modelKeypoints_);
-		std::cout << "No. Model Keypoints: " << modelKeypoints_.size() << " of: " << model.size() << std::endl;
-
-		issDetector.setSalientRadius(6 * scene_resolution);
-		issDetector.setNonMaxRadius(4 * scene_resolution);
-		issDetector.setInputCloud(scene.makeShared());
-		issDetector.compute(sceneKeypoints_);
-		std::cout << "No. Scene Keypoints: " << sceneKeypoints_.size() << " of: " << scene.size() << std::endl;
+		issDetector.setInputCloud(cloud.makeShared());
+		issDetector.compute(out);
+		std::cout << "No. Keypoints: " << out.size() << " of: " << cloud.size() << std::endl;
 	}
 };
 #endif

@@ -15,7 +15,7 @@ public:
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
 		normalEstimation.setSearchMethod(kdtree);
 		// Set coordinates of viewpoint (x,y,z)
-		normalEstimation.setViewPoint(0, 0, 0.36);
+		normalEstimation.setViewPoint(0, 0, 10);
 		//Estimate Model Normals
 		normalEstimation.setRadiusSearch(radiusModel);
 		normalEstimation.setInputCloud(model.makeShared());

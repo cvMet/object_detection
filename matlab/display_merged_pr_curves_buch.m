@@ -4,13 +4,14 @@
 %pairs are computed continuously. These values are used to draw the
 %PR-curve. Merge several files from one folder
 clear all;
-rootdir = '..\PR\Buch\09_04_20\muttern\3d_filtered\B_SHOT\iss3_th0.9\0_tran';
-folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
+rootdir = '..\PR\Buch\23_04_20\muttern_schraeg_gross\3d_filtered\B_SHOT\';
+%folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
+folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''mg_msg'')', true);
 marker_index = 1;
 NOF_colors = 7;
 plot_count = 1;
 x_axis = 1;
-y_axis = 1;
+y_axis = 0.3;
 stepsize = 1;
 keyword_transformation = 'tran';
 keyword_object = 'M';
@@ -19,7 +20,8 @@ for folder = 1:length(folder_list)
     NOF_keypoints = 0;
     NNDR = [];
     euclidean_distance = [];
-    files = dir(strcat(rootdir,'\', folder_list(folder).name, '\*.csv'));
+    %files = dir(strcat(rootdir,'\', folder_list(folder).name, '\*.csv'));
+    files = dir(strcat(folder_list(folder).name, '\*.csv'));
     %load all matches into one array
     for file = 1:length(files)
         filename = strcat(files(file).folder, '\', files(file).name)
@@ -48,8 +50,13 @@ for folder = 1:length(folder_list)
         euclidean_distance = [euclidean_distance; data(:,2)];
     end
     %Sort keypoints by NNDR in ascending order
+    
+    
     [sorted_keypoints, sort_idx] = sort(NNDR, 'ascend');
     sorted_euclidean_distance = euclidean_distance(sort_idx);
+  %  sorted_euclidean_distance = sort(euclidean_distance, 'ascend');
+
+    
     %Calculate TP&FP -> derive precision and recall
     %     keypoints_09 = numel(NNDR(NNDR(:,1)<0.9,:));
     %     keypoints_092 = numel(NNDR(NNDR(:,1)<0.925,:));
@@ -71,7 +78,8 @@ for folder = 1:length(folder_list)
         recall = [recall tp/NOF_keypoints];
     end
     
-    legend_name = strcat(folder_list(folder).name);
+    name = strcat(folder_list(folder).name);
+    legend_name = name(end-26:end);
     %Visualization
     set(groot, 'DefaultTextInterpreter', 'LaTeX');
     set(groot, 'DefaultAxesTickLabelInterpreter', 'LaTeX');

@@ -46,7 +46,7 @@ int accumulated_keypoints = 0;
 const int rows = 240, columns = 320;
 
 //Descriptor Parameters
-float shotRadius_ = 35;
+float shotRadius_ = 30;
 float fpfhRadius_ = 20;
 
 #if isshot
@@ -234,12 +234,12 @@ double compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& 
 	return res;
 }
 
-void ransac_rejection(pcl::Correspondences corresp, float resolution, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+void ransac_rejection(pcl::Correspondences corresp, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
 	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
-	double sac_threshold = 30.0 * resolution;
 	RansacRejector.setInputSource(modelKeypoints.makeShared());
 	RansacRejector.setInputTarget(sceneKeypoints.makeShared());
-	RansacRejector.setInlierThreshold(sac_threshold);
+	//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
+	RansacRejector.setInlierThreshold(0.005);
 	RansacRejector.setInputCorrespondences(correspond);
 	RansacRejector.getCorrespondences(corr);
 	std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
@@ -303,7 +303,6 @@ void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path
 	}
 }
 
-
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
@@ -317,6 +316,7 @@ int main(int argc, char* argv[])
 	pcl::PointCloud<pcl::PointXYZ> filtered_background;
 	pcl::PointCloud<pcl::PointXYZ> final_cloud;
 	pcl::PointCloud<pcl::PointXYZ> roi_cloud;
+	pcl::PointCloud<pcl::PointXYZ> temp_cloud;
 
 	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> model;
@@ -326,43 +326,42 @@ int main(int argc, char* argv[])
 	vector<fs::path> background_depth_names;
 	vector<fs::path> cloud_names;
 
-	vector<float> keypointdetector_threshold = {0.7f };
-	vector<int> keypointdetector_nof_neighbors = {3 };
+	vector<float> keypointdetector_threshold = { 0.95f };
+	vector<int> keypointdetector_nof_neighbors = { 5 };
 
 	float modelResolution, sceneResolution;
 
 	//Paths used during cloudgen
-	string model_depth_directory = "../../../../datasets/conveyor/raw_depth/gipfeli/0_tran/model";
-	string background_depth_directory = "../../../../datasets/conveyor/raw_depth/gipfeli/0_tran/background";
+	string model_depth_directory = "../../../../datasets/23_04_20/raw_depth/muttern_schraeg/0_tran/model";
+	string background_depth_directory = "../../../../datasets/23_04_20/raw_depth/muttern_schraeg/0_tran/background";
 	string depth_extension = ".txt";
 
 	//cloudgen & objectdetection
-	string cloud_directory = "../../../../clouds/conveyor/g/3d_filtered/0_tran";
+	string cloud_directory = "../../../../clouds/23_04_20/ms/3d_filtered/experimental";
 
 	//path used during objectdetection
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
-	string object = "Gipfeli";
-	string dataset = "conveyor";
+	string object = "muttern_schraeg";
+	string dataset = "23_04_20";
 	string preprocessor_mode = "3d_filtered";
-	string transformation = "0_tran";
+	string transformation = "experimental";
 
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
 	//Define if clouds need to be generated first
-#if 1
+#if 0
 
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
+	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 4);
 	//CloudCreator.show_cloud(filtered_background);
 
 	for (int i = 0; i < model_depth_names.size(); ++i) {
 		vector<tuple<string, float>> creation_stats;
 		std::string model_depth_filename = model_depth_directory + "/" + model_depth_names[i].string();
-
 		time_meas();
 		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
 		creation_stats.push_back(time_meas("time_textToDistance"));
@@ -370,29 +369,68 @@ int main(int argc, char* argv[])
 		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
 		creation_stats.push_back(time_meas("time_distanceToCloud"));
 		time_meas();
-		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
-		//	CloudCreator.show_cloud(filtered_model);
+		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 4);
 		creation_stats.push_back(time_meas("time_medianfilter"));
 		time_meas();
-		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.004f);
+		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.005f);
 
 		creation_stats.push_back(time_meas("time_backgroundRemoval"));
-		roi_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.125f);
-
+		roi_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.1f);
+		temp_cloud = CloudCreator.remove_outliers(roi_cloud.makeShared(),15);
 		string filename = cloud_directory + "/" + background_depth_names[i].string();
 		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 		string statistics = create_writable_stats(creation_stats);
 		string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
-		pcl::io::savePLYFileASCII(substr, roi_cloud);
-		FileHandler.writeToFile(statistics, stats_filename);
+		pcl::io::savePLYFileASCII(substr, temp_cloud);
+
+  // Creating the KdTree object for the search method of the extraction
+		vector<pcl::PointCloud<PointXYZ>> clusters;
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+		tree->setInputCloud(temp_cloud.makeShared());
+
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance(0.005); 
+		ec.setMinClusterSize(500);
+		ec.setMaxClusterSize(5000);
+		ec.setSearchMethod(tree);
+		ec.setInputCloud(temp_cloud.makeShared());
+		ec.extract(cluster_indices);
+
+		int j = 0;
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+		{
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+			for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++)
+				cloud_cluster->points.push_back(temp_cloud.points[*pit]); //*
+				cloud_cluster->width = cloud_cluster->points.size();
+				cloud_cluster->height = 1;
+				cloud_cluster->is_dense = true;
+
+				std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+				clusters.push_back(*cloud_cluster);
+				substr = filename.substr(0, (filename.length() - 4)) +"cluster_"+ to_string(j)+ ".ply";
+				pcl::io::savePLYFileASCII(substr, *cloud_cluster);
+				j++;
+		}
+
+		//CloudCreator.show_cloud(roi_cloud);
+		//CloudCreator.show_cloud(temp_cloud);
+		//for (int i = 0; i < clusters.size(); ++i) {
+		//	CloudCreator.show_cloud(clusters[i]);
+		//}
+
+		
+		//pcl::io::savePLYFileASCII(substr, temp_cloud);
+		//FileHandler.writeToFile(statistics, stats_filename);
 	}
 #endif
 
-//enable for automated detection process
-#if 0
+	//enable for automated detection process
+#if 1
 	get_all_file_names(cloud_directory, ".ply", cloud_names);
 	//string model_filename = cloud_directory + "/" + cloud_names[0].string();
-	string model_filename = "../../../../clouds/conveyor/g/3d_filtered/0_tran/Gipfeli_2.ply";
+	string model_filename = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/M26_0_0_0_0_SOR.ply";
 
 	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor) {
 		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold) {
@@ -405,20 +443,23 @@ int main(int argc, char* argv[])
 				Matching Matcher;
 
 				string scene_filename = cloud_directory + "/" + cloud_names[scene_number].string();
-				int name_pos = scene_filename.find("Gipfeli", 0);
+				int name_pos = scene_filename.find("M26", 0);
 				int extension_pos = scene_filename.find(".ply", 0);
 				string model_identifier = get_identifier(model_filename, name_pos, extension_pos);
 				string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
-				string pr_filename = pr_root		+ "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-													+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
-													+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0,3)
-													+ "/" + transformation
-													+ "/"	+ model_identifier + "_to_" + scene_identifier + ".csv";
-				string stats_filename = stats_root	+ "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-													+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor]) 
-													+ "_th"	+ std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
-													+ "/" + transformation
-													+ "/" + model_identifier + "_to_" + scene_identifier + "_stats.csv";
+
+				//scene_filename = "../../../../clouds/23_04_20/m/3d_filtered/0_tran/M26_0_0_0_-6.ply";
+
+				string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+					+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
+					+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+					+ "/" + transformation
+					+ "/" + model_identifier + "_to_" + scene_identifier + ".csv";
+				string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+					+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
+					+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+					+ "/" + transformation
+					+ "/" + model_identifier + "_to_" + scene_identifier + "_stats.csv";
 
 				std::string model_fileformat = get_fileformat(model_filename);
 				std::string scene_fileformat = get_fileformat(scene_filename);
@@ -432,16 +473,17 @@ int main(int argc, char* argv[])
 				time_meas();
 				NormalEstimator.model = model;
 				NormalEstimator.scene = scene;
-				NormalEstimator.calculateNormals(7.0f * modelResolution, 7.0f * sceneResolution);
+				NormalEstimator.calculateNormals(5 * modelResolution, 5 * sceneResolution);
 				NormalEstimator.removeNaNNormals();
 				model = NormalEstimator.model;
 				scene = NormalEstimator.scene;
 				processing_times.push_back(time_meas("normal estimation"));
-
 				//Detect keypoints
 				time_meas();
-				KeypointDetector.calculateIssKeypoints(model, scene, NormalEstimator.modelNormals_, modelResolution, sceneResolution,
-					keypointdetector_threshold[threshold] ,keypointdetector_nof_neighbors[neighbor]);
+				KeypointDetector.calculateIssKeypoints(KeypointDetector.modelKeypoints_, model, NormalEstimator.modelNormals_, modelResolution,
+					keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
+				KeypointDetector.calculateIssKeypoints(KeypointDetector.sceneKeypoints_, scene, NormalEstimator.sceneNormals_, sceneResolution,
+					keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
 				processing_times.push_back(time_meas("detecting keypoints"));
 
 				//Calculate descriptor for each keypoint
@@ -463,7 +505,7 @@ int main(int argc, char* argv[])
 				// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
 				time_meas();
 				RansacRejector.setMaximumIterations(1000);
-				ransac_rejection(Matcher.corresp, modelResolution, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
+				ransac_rejection(Matcher.corresp, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
 				Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
 				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
 				pcl::transformPointCloud(model, model, transformation_matrix);
@@ -472,8 +514,8 @@ int main(int argc, char* argv[])
 				// Iterative closest Point ICP
 				time_meas();
 				transformation_matrix = icp(model, scene);
-				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
 				pcl::transformPointCloud(model, model, transformation_matrix);
+				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
 				processing_times.push_back(time_meas("ICP"));
 
 				//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
@@ -492,72 +534,91 @@ int main(int argc, char* argv[])
 				std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
 				filehandler.writeToFile(results, pr_filename);
 				print_results(true_positives, KeypointDetector);
-#endif
-				//Enable if evaluation according to Buch et al.
-#if 1
-				accumulate_keypoints(KeypointDetector);
-				std::string results = concatenate_distances(euclidean_distance);
-				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
-				std::string statistics = create_writable_stats(stats);
-				FileHandler.writeToFile(results, pr_filename);
-				FileHandler.writeToFile(statistics, stats_filename);
 
 #endif
-				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-				FileHandler.writeToFile(NOF_keypoints, pr_filename);
-				NOF_keypoints = "";
-				accumulated_keypoints = 0;
+				//Enable if evaluation according to Buch et al.
+//#if 1
+//				accumulate_keypoints(KeypointDetector);
+//				std::string results = concatenate_distances(euclidean_distance);
+//				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
+//				std::string statistics = create_writable_stats(stats);
+//				//FileHandler.writeToFile(results, pr_filename);
+//				//FileHandler.writeToFile(statistics, stats_filename);
+//
+//#endif
+//				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+//				//FileHandler.writeToFile(NOF_keypoints, pr_filename);
+//				NOF_keypoints = "";
+//				accumulated_keypoints = 0;
+//				//corr.clear();
+
+#endif
+
+				//Enable if the visualization module should be used
+#if 1
+	//
+	// VISUALIZATION MODULE
+	//
+				boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+				viewer->setBackgroundColor(0, 0, 0);
+
+				//viewer->addCoordinateSystem (1.0);
+				viewer->initCameraParameters();
+
+				//Move model so that it is separated from the scene to see correspondences
+				Eigen::Matrix4f t;
+				t << 1, 0, 0, modelResolution * 50,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1;
+
+				pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, t);
+				pcl::transformPointCloud(model, model, t);
+				//Add model keypoints to visualizer
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(KeypointDetector.modelKeypoints_.makeShared(), 200, 0, 0);
+				viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), red, "sample cloud1");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
+				//add scene keypoints to visualizer
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(KeypointDetector.sceneKeypoints_.makeShared(), 0, 0, 150);
+				viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.sceneKeypoints_.makeShared(), blue, "sample cloud2");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
+				//add lines between the correspondences
+				viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), KeypointDetector.sceneKeypoints_.makeShared(), corr, "correspondences");
+
+				//add model points to visualizer
+				viewer->addPointCloud<pcl::PointXYZ>(model.makeShared(), "sample cloud3");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "sample cloud3");
+
+				//add scene points to visualizer
+				//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> white_scene(scene.makeShared(), 155, 155, 155);
+				viewer->addPointCloud<pcl::PointXYZ>(scene.makeShared(), "sample cloud4");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud4");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud4");
+				//
+				////add normals
+				//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(model.makeShared(), NormalEstimator.modelNormals_.makeShared(), 15, 0.005, "model_normals");
+				//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(scene.makeShared(), NormalEstimator.sceneNormals_.makeShared(), 15, 0.005, "scene_normals");
+				//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "model_normals");
+				//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "scene_normals");
+
+				//viewer->setCameraPosition(-0.0100684, -0.00191237, 0.0384372, -0.0153327, -0.0521215, 0.00973529, 0.12715, -0.502269, 0.855312);
+				//viewer->setCameraFieldOfView(0.523598775);
+				//viewer->setCameraClipDistances(0.000134497, 0.134497);
+				//viewer->setPosition(0, 0);
+				//viewer->setSize(1024, 756);
+
+				while (!viewer->wasStopped())
+				{
+					viewer->spinOnce(100);
+					std::this_thread::sleep_for(100ms);
+				}
+
 				corr.clear();
+
 			}
 		}
 	}
 #endif
-
-//Enable if the visualization module should be used
-#if 0
-	//
-	// VISUALIZATION MODULE
-	//
-	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-	viewer->setBackgroundColor(0, 0, 0);
-
-	//viewer->addCoordinateSystem (1.0);
-	viewer->initCameraParameters();
-
-	//Move model so that it is separated from the scene to see correspondences
-	Eigen::Matrix4f t;
-	t << 1, 0, 0, modelResolution * 200,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1;
-
-	pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, t);
-	pcl::transformPointCloud(model, model, t);
-	//Add model keypoints to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color1(KeypointDetector.modelKeypoints_.makeShared(), 200, 0, 0);
-	viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), single_color1, "sample cloud1");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
-	//add scene keypoints to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(KeypointDetector.sceneKeypoints_.makeShared(), 0, 0, 150);
-	viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.sceneKeypoints_.makeShared(), single_color2, "sample cloud2");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
-	//add model points to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color3(model.makeShared(), 155, 155, 155);
-	viewer->addPointCloud<pcl::PointXYZ>(model.makeShared(), single_color3, "sample cloud3");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
-	//add scene points to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color4(scene.makeShared(), 120, 120, 120);
-	viewer->addPointCloud<pcl::PointXYZ>(scene.makeShared(), single_color4, "sample cloud4");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud4");
-	//add lines between the correspondences
-	viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), KeypointDetector.sceneKeypoints_.makeShared(), corr/*goodCorr/*corresp*/, "correspondences");
-
-	while (!viewer->wasStopped())
-	{
-		viewer->spinOnce(100);
-		std::this_thread::sleep_for(100ms);
-	}
-#endif
-
 	return 0;
 }
