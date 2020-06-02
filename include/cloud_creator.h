@@ -155,10 +155,23 @@ public:
 	}
 
 	pcl::PointCloud<pcl::PointXYZ> remove_background(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background, float threshold) {
-		pcl::PointCloud<pcl::PointXYZ> output_cloud;
+		pcl::PointCloud<pcl::PointXYZ> output_cloud(320,240);
 		float z;
-		PointXYZ point;
-		for (int i = 0; i < point_cloud.size(); ++i) {
+		//PointXYZ point;
+		for (int i = 0; i < point_cloud.width; ++i) {
+			for (int j = 0; j < point_cloud.height; ++j) {
+				z = background.at(i,j).z - point_cloud.at(i,j).z;
+				if (z > threshold) {
+					output_cloud.at(i, j).x = point_cloud.at(i,j).x;
+					output_cloud.at(i, j).y = point_cloud.at(i,j).y;
+					output_cloud.at(i, j).z = z;
+				}
+				else {
+					z = 0;
+				}
+			}
+		}
+		/*for (int i = 0; i < point_cloud.size(); ++i) {
 			z = background.at(i).z - point_cloud.at(i).z;
 			if (z > threshold) {
 				point.x = point_cloud.at(i).x;
@@ -169,7 +182,7 @@ public:
 			else {
 				z = 0;
 			}
-		}
+		}*/
 		return output_cloud;
 	}
 
