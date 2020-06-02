@@ -4,18 +4,19 @@
 %pairs are computed continuously. These values are used to draw the
 %PR-curve. Merge several files from one folder
 clear all;
-rootdir = '..\PR\Buch\23_04_20\muttern_schraeg_gross\3d_filtered\B_SHOT\';
+rootdir = '..\PR\Buch\23_04_20\muttern_schraeg\3d_filtered\B_SHOT\iss5_th0.7\clustered\';
 %folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
-folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''mg_msg'')', true);
+folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''MODEL_'')', true);
 marker_index = 1;
 NOF_colors = 7;
 plot_count = 1;
 x_axis = 1;
-y_axis = 0.3;
+y_axis = 1;
 stepsize = 1;
-keyword_transformation = 'tran';
+keyword_transformation = 'clustered';
 keyword_object = 'M';
-PR_graph_path = strcat(rootdir,'\',keyword_object,'_',keyword_transformation,'_','PR_merged.png');
+detector_mode = rootdir(56:end-11);
+PR_graph_path = strcat(rootdir,'\',keyword_object,'_',keyword_transformation,'_',detector_mode, '.png');
 for folder = 1:length(folder_list)
     NOF_keypoints = 0;
     NNDR = [];
@@ -25,6 +26,12 @@ for folder = 1:length(folder_list)
     %load all matches into one array
     for file = 1:length(files)
         filename = strcat(files(file).folder, '\', files(file).name)
+        %Search for a pattern in filename (e.g. specific rotation), ignore
+        %file if pattern is not found
+        k = strfind(filename,'M26_30');
+        if(isempty(k))
+           continue 
+        end
         data = load(filename,'-ascii');
         %Ignore files with no Matches but include Number of Keypoints
         if(isvector(data))
@@ -49,14 +56,9 @@ for folder = 1:length(folder_list)
         NNDR = [NNDR; data(:,1)];
         euclidean_distance = [euclidean_distance; data(:,2)];
     end
-    %Sort keypoints by NNDR in ascending order
-    
-    
+    %Sort keypoints by NNDR in ascending order   
     [sorted_keypoints, sort_idx] = sort(NNDR, 'ascend');
-    sorted_euclidean_distance = euclidean_distance(sort_idx);
-  %  sorted_euclidean_distance = sort(euclidean_distance, 'ascend');
-
-    
+    sorted_euclidean_distance = euclidean_distance(sort_idx);  
     %Calculate TP&FP -> derive precision and recall
     %     keypoints_09 = numel(NNDR(NNDR(:,1)<0.9,:));
     %     keypoints_092 = numel(NNDR(NNDR(:,1)<0.925,:));
@@ -79,7 +81,8 @@ for folder = 1:length(folder_list)
     end
     
     name = strcat(folder_list(folder).name);
-    legend_name = name(end-26:end);
+    %legend_name = name(end-26:end);
+    legend_name = name(67:end);
     %Visualization
     set(groot, 'DefaultTextInterpreter', 'LaTeX');
     set(groot, 'DefaultAxesTickLabelInterpreter', 'LaTeX');
@@ -109,4 +112,4 @@ for folder = 1:length(folder_list)
     
 end
 legend('show');
-saveas(gcf,PR_graph_path);
+%saveas(gcf,PR_graph_path);
