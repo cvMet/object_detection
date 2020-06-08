@@ -557,7 +557,7 @@ int main(int argc, char* argv[])
 	//Unordered filtering playground
 #if 1
 	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
 	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
 	{
 		std::cout << "Error loading initial master cloud." << std::endl;
@@ -577,7 +577,10 @@ int main(int argc, char* argv[])
 
 	
 	pcl::PointXYZ filtered_point;
-	int max_points_to_average = 50;
+	vector<int> max_points_to_average = { 5,10,20,50,100};
+
+	//MEAN FILTERING
+#if 0
 	for (int point = 0; point < neighbor_indices.size(); ++point) {
 		if (neighbor_indices[point].size() < max_points_to_average) {
 			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
@@ -601,9 +604,69 @@ int main(int argc, char* argv[])
 		}
 		filtered->points.push_back(filtered_point);
 	}
+#endif
+
+	//MEDIAN FILTERING
+#if 0
+	for (int avg = 0; avg < max_points_to_average.size(); ++avg) {
+		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
+		for (int point = 0; point < neighbor_indices.size(); ++point) {
+			vector<float> x_values;
+			vector<float> y_values;
+			vector<float> z_values;
+			if (neighbor_indices[point].size() < max_points_to_average[avg]) {
+				for (int i = 0; i < neighbor_indices[point].size(); ++i) {
+					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
+					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
+					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
+				}
+				std::vector<float>::iterator first = x_values.begin();
+				std::vector<float>::iterator last = x_values.end();
+				std::vector<float>::iterator middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.x = *middle;
+				first = y_values.begin();
+				last = y_values.end();
+				middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.y = *middle;
+				first = z_values.begin();
+				last = z_values.end();
+				middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.z = *middle;
+			}
+			else {
+				for (int i = 0; i < max_points_to_average[avg]; ++i) {
+					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
+					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
+					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
+				}
+				std::vector<float>::iterator first = x_values.begin();
+				std::vector<float>::iterator last = x_values.end();
+				std::vector<float>::iterator middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.x = *middle;
+				first = y_values.begin();
+				last = y_values.end();
+				middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.y = *middle;
+				first = z_values.begin();
+				last = z_values.end();
+				middle = first + (last - first) / 2;
+				std::nth_element(first, middle, last);
+				filtered_point.z = *middle;
+			}
+			filtered->points.push_back(filtered_point);
+		}
+		string filename = "../../../../clouds/mastercloud/mastercloud_median_" + to_string(max_points_to_average[avg]) + ".ply";
+		pcl::io::savePLYFileASCII(filename, *filtered);
+	}
+#endif
 	
 	CloudCreator.show_cloud(*unordered_cloud);
-	CloudCreator.show_cloud(*filtered);
+	//CloudCreator.show_cloud(*filtered);
 #endif
 
 	//Enable if clouds need to be generated first
