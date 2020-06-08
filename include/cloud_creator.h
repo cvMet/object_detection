@@ -155,9 +155,27 @@ public:
 	}
 
 	pcl::PointCloud<pcl::PointXYZ> remove_background(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background, float threshold) {
+		pcl::PointCloud<pcl::PointXYZ> output_cloud;
+		float z;
+		PointXYZ point;
+		for (int i = 0; i < point_cloud.size(); ++i) {
+			z = background.at(i).z - point_cloud.at(i).z;
+			if (z > threshold) {
+				point.x = point_cloud.at(i).x;
+				point.y = point_cloud.at(i).y;
+				point.z = z;
+				output_cloud.push_back(point);
+			}
+			else {
+				z = 0;
+			}
+		}
+		return output_cloud;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ> remove_background_ordered(pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> background, float threshold) {
 		pcl::PointCloud<pcl::PointXYZ> output_cloud(320,240);
 		float z;
-		//PointXYZ point;
 		for (int i = 0; i < point_cloud.width; ++i) {
 			for (int j = 0; j < point_cloud.height; ++j) {
 				z = background.at(i,j).z - point_cloud.at(i,j).z;
@@ -171,18 +189,6 @@ public:
 				}
 			}
 		}
-		/*for (int i = 0; i < point_cloud.size(); ++i) {
-			z = background.at(i).z - point_cloud.at(i).z;
-			if (z > threshold) {
-				point.x = point_cloud.at(i).x;
-				point.y = point_cloud.at(i).y;
-				point.z = z;
-				output_cloud.push_back(point);
-			}
-			else {
-				z = 0;
-			}
-		}*/
 		return output_cloud;
 	}
 
@@ -194,9 +200,7 @@ public:
 		pass.filter(cloud);
 		return cloud;
 	}
-
 	
-
 	double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 	{
 		double res = 0.0;
