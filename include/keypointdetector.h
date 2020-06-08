@@ -30,7 +30,7 @@ public:
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> issDetector;
 		issDetector.setNormals(normals.makeShared());
 		//issDetector.setSearchMethod(tree);
-		issDetector.setSalientRadius(6 * resolution);
+		issDetector.setSalientRadius(6*resolution);
 		//nonMax radius set to 5mm since this is approx stddev of melexis camera
 		//issDetector.setNonMaxRadius(4 * resolution);
 		issDetector.setNonMaxRadius(0.005f);
