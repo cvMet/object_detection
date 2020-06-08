@@ -554,16 +554,57 @@ int main(int argc, char* argv[])
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr cloudy(new pcl::PointCloud<pcl::PointXYZ>);
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
-	//if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *cloudy) == -1)
-	//{
-	//	std::cout << "Error loading initial master cloud." << std::endl;
-	//}
-	//*filtered = CloudCreator.median_filter_cloud(*cloudy, 10);
-	//CloudCreator.show_cloud(*filtered);
+	//Unordered filtering playground
+#if 1
+	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
+	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
+	{
+		std::cout << "Error loading initial master cloud." << std::endl;
+	}
+	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+	tree->setInputCloud(unordered_cloud);
+	vector<vector<int>> neighbor_indices;
+	vector<vector<float>> neighbor_distances;
+	for (int point = 0; point < unordered_cloud->points.size(); ++point) {
+		vector<int> neighbors;
+		vector<float> distances;
+		pcl::PointXYZ pt = unordered_cloud->at(point);
+		tree->radiusSearch(pt, 0.005f, neighbors, distances);
+		neighbor_indices.push_back(neighbors);
+		neighbor_distances.push_back(distances);
+	}
 
-
+	
+	pcl::PointXYZ filtered_point;
+	int max_points_to_average = 50;
+	for (int point = 0; point < neighbor_indices.size(); ++point) {
+		if (neighbor_indices[point].size() < max_points_to_average) {
+			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
+				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
+				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
+				filtered_point.z += unordered_cloud->at(neighbor_indices[point][i]).z;
+			}
+			filtered_point.x = filtered_point.x / neighbor_indices[point].size();
+			filtered_point.y = filtered_point.y / neighbor_indices[point].size();
+			filtered_point.z = filtered_point.z / neighbor_indices[point].size();
+		}
+		else {
+			for (int i = 0; i < max_points_to_average; ++i) {
+				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
+				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
+				filtered_point.z += unordered_cloud->at(neighbor_indices[point][i]).z;
+			}
+			filtered_point.x = filtered_point.x / max_points_to_average;
+			filtered_point.y = filtered_point.y / max_points_to_average;
+			filtered_point.z = filtered_point.z / max_points_to_average;
+		}
+		filtered->points.push_back(filtered_point);
+	}
+	
+	CloudCreator.show_cloud(*unordered_cloud);
+	CloudCreator.show_cloud(*filtered);
+#endif
 
 	//Enable if clouds need to be generated first
 #if 0
