@@ -554,10 +554,9 @@ int main(int argc, char* argv[])
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
-	//Unordered filtering playground
+//Unordered filtering playground
 #if 1
 	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
 	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
 	{
 		std::cout << "Error loading initial master cloud." << std::endl;
@@ -570,17 +569,22 @@ int main(int argc, char* argv[])
 		vector<int> neighbors;
 		vector<float> distances;
 		pcl::PointXYZ pt = unordered_cloud->at(point);
+		//Radius based search
+		#if 0
 		tree->radiusSearch(pt, 0.005f, neighbors, distances);
+		#endif
+		//NN based search
+		#if 1
+		tree->nearestKSearch(pt, 10, neighbors, distances);
+		#endif
 		neighbor_indices.push_back(neighbors);
 		neighbor_distances.push_back(distances);
 	}
-
-	
 	pcl::PointXYZ filtered_point;
-	vector<int> max_points_to_average = { 5,10,20,50,100};
+	vector<int> max_points_to_average = {3,5,10,100 };
 
 	//MEAN FILTERING
-#if 0
+	#if 0
 	for (int point = 0; point < neighbor_indices.size(); ++point) {
 		if (neighbor_indices[point].size() < max_points_to_average) {
 			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
@@ -604,10 +608,10 @@ int main(int argc, char* argv[])
 		}
 		filtered->points.push_back(filtered_point);
 	}
-#endif
-
+	#endif
+	
 	//MEDIAN FILTERING
-#if 0
+	#if 1
 	for (int avg = 0; avg < max_points_to_average.size(); ++avg) {
 		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
 		for (int point = 0; point < neighbor_indices.size(); ++point) {
@@ -660,17 +664,14 @@ int main(int argc, char* argv[])
 			}
 			filtered->points.push_back(filtered_point);
 		}
-		string filename = "../../../../clouds/mastercloud/mastercloud_median_" + to_string(max_points_to_average[avg]) + ".ply";
+		string filename = "../../../../clouds/mastercloud/mastercloud_median_NN" + to_string(max_points_to_average[avg]) + ".ply";
 		pcl::io::savePLYFileASCII(filename, *filtered);
 	}
+	#endif
 #endif
 	
-	CloudCreator.show_cloud(*unordered_cloud);
-	//CloudCreator.show_cloud(*filtered);
-#endif
-
 	//Enable if clouds need to be generated first
-#if 0
+	#if 0
 
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
@@ -709,10 +710,10 @@ int main(int argc, char* argv[])
 		//pcl::io::savePLYFileASCII(substr, temp_cloud);
 		//FileHandler.writeToFile(statistics, stats_filename);
 	}
-#endif
-
+	#endif
+	
 	//Enable if several clouds should get merged into one cloud
-#if 0
+	#if 0
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
 	std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
@@ -913,10 +914,10 @@ int main(int argc, char* argv[])
 	}
 	*master_cloud = CloudCreator.remove_outliers(master_cloud, 50);
 	pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud_SOR.ply", *master_cloud);
-#endif
-	
+	#endif
+		
 	//Enable for automated detection process
-#if 0
+	#if 0
 	get_all_file_names(query_directory, ".ply", query_names);
 	get_all_file_names(scene_directory, ".ply", scene_names);
 
@@ -1052,10 +1053,10 @@ int main(int argc, char* argv[])
 	//				accumulated_keypoints = 0;
 	//				//corr.clear();
 
-#endif
-
+	#endif
+	
 	//Enable if the visualization module should be used
-#if 0
+	#if 0
 
 					Eigen::Matrix3f	temp, Rx, Ry, Rz;
 					Eigen::Matrix4f T;
@@ -1157,7 +1158,7 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-#endif
+	#endif
 
 	return 0;
 }
