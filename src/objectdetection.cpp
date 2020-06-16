@@ -502,6 +502,14 @@ int value_between_seperator(string& str, string seperator, int pos) {
 	return temp;
 }
 
+float get_median(std::vector<float> values) {
+	std::vector<float>::iterator first = values.begin();
+	std::vector<float>::iterator last = values.end();
+	std::vector<float>::iterator middle = first + (last - first) / 2;
+	std::nth_element(first, middle, last);
+	return *middle;
+}
+
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
@@ -568,25 +576,25 @@ int main(int argc, char* argv[])
 	for (int point = 0; point < unordered_cloud->points.size(); ++point) {
 		vector<int> neighbors;
 		vector<float> distances;
-		pcl::PointXYZ pt = unordered_cloud->at(point);
+		pcl::PointXYZ query_point = unordered_cloud->at(point);
 		//Radius based search
 		#if 0
-		tree->radiusSearch(pt, 0.005f, neighbors, distances);
+		tree->radiusSearch(query_point, 0.005f, neighbors, distances);
 		#endif
 		//NN based search
 		#if 1
-		tree->nearestKSearch(pt, 10, neighbors, distances);
+		tree->nearestKSearch(query_point, 10, neighbors, distances);
 		#endif
 		neighbor_indices.push_back(neighbors);
 		neighbor_distances.push_back(distances);
 	}
 	pcl::PointXYZ filtered_point;
-	vector<int> max_points_to_average = {3,5,10,100 };
+	vector<int> max_points_to_process = {3,5,10,100 };
 
 	//MEAN FILTERING
 	#if 0
 	for (int point = 0; point < neighbor_indices.size(); ++point) {
-		if (neighbor_indices[point].size() < max_points_to_average) {
+		if (neighbor_indices[point].size() < max_points_to_process) {
 			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
 				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
 				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
@@ -597,14 +605,14 @@ int main(int argc, char* argv[])
 			filtered_point.z = filtered_point.z / neighbor_indices[point].size();
 		}
 		else {
-			for (int i = 0; i < max_points_to_average; ++i) {
+			for (int i = 0; i < max_points_to_process; ++i) {
 				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
 				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
 				filtered_point.z += unordered_cloud->at(neighbor_indices[point][i]).z;
 			}
-			filtered_point.x = filtered_point.x / max_points_to_average;
-			filtered_point.y = filtered_point.y / max_points_to_average;
-			filtered_point.z = filtered_point.z / max_points_to_average;
+			filtered_point.x = filtered_point.x / max_points_to_process;
+			filtered_point.y = filtered_point.y / max_points_to_process;
+			filtered_point.z = filtered_point.z / max_points_to_process;
 		}
 		filtered->points.push_back(filtered_point);
 	}
@@ -612,59 +620,37 @@ int main(int argc, char* argv[])
 	
 	//MEDIAN FILTERING
 	#if 1
-	for (int avg = 0; avg < max_points_to_average.size(); ++avg) {
+	for (int max = 0; max < max_points_to_process.size(); ++max) {
 		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
 		for (int point = 0; point < neighbor_indices.size(); ++point) {
 			vector<float> x_values;
 			vector<float> y_values;
 			vector<float> z_values;
-			if (neighbor_indices[point].size() < max_points_to_average[avg]) {
+			//Case # neighbors found is less than the number passed in search call 
+			if (neighbor_indices[point].size() < max_points_to_process[max]) {
 				for (int i = 0; i < neighbor_indices[point].size(); ++i) {
 					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
 					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
 					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
 				}
-				std::vector<float>::iterator first = x_values.begin();
-				std::vector<float>::iterator last = x_values.end();
-				std::vector<float>::iterator middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.x = *middle;
-				first = y_values.begin();
-				last = y_values.end();
-				middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.y = *middle;
-				first = z_values.begin();
-				last = z_values.end();
-				middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.z = *middle;
+				filtered_point.x = get_median(x_values);
+				filtered_point.y = get_median(y_values);
+				filtered_point.z = get_median(z_values);
 			}
+			//Case # neighbors found = number passed in search call 
 			else {
-				for (int i = 0; i < max_points_to_average[avg]; ++i) {
+				for (int i = 0; i < max_points_to_process[max]; ++i) {
 					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
 					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
 					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
 				}
-				std::vector<float>::iterator first = x_values.begin();
-				std::vector<float>::iterator last = x_values.end();
-				std::vector<float>::iterator middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.x = *middle;
-				first = y_values.begin();
-				last = y_values.end();
-				middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.y = *middle;
-				first = z_values.begin();
-				last = z_values.end();
-				middle = first + (last - first) / 2;
-				std::nth_element(first, middle, last);
-				filtered_point.z = *middle;
+				filtered_point.x = get_median(x_values);
+				filtered_point.y = get_median(y_values);
+				filtered_point.z = get_median(z_values);
 			}
 			filtered->points.push_back(filtered_point);
 		}
-		string filename = "../../../../clouds/mastercloud/mastercloud_median_NN" + to_string(max_points_to_average[avg]) + ".ply";
+		string filename = "../../../../clouds/mastercloud/mastercloud_median_NN" + to_string(max_points_to_process[max]) + ".ply";
 		pcl::io::savePLYFileASCII(filename, *filtered);
 	}
 	#endif
