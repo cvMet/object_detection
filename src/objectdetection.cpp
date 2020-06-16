@@ -524,46 +524,41 @@ int main(int argc, char* argv[])
 	pcl::PointCloud<pcl::PointXYZ> final_cloud;
 	pcl::PointCloud<pcl::PointXYZ> roi_cloud;
 	pcl::PointCloud<pcl::PointXYZ> temp_cloud;
-
 	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
-
-	vector<fs::path> model_depth_names;
-	vector<fs::path> background_depth_names;
-	vector<fs::path> cloud_names;
-
-	vector<float> keypointdetector_threshold = {0.7f};
-	vector<int> keypointdetector_nof_neighbors = {3, 5 };
-
-	float modelResolution, sceneResolution;
 
 	//Paths used during cloudgen
 	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/model";
 	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/background";
 	string depth_extension = ".txt";
 	string cloud_directory = "../../../../clouds/20_03_20/WB/0_tran/unfiltered";
-
+	vector<fs::path> model_depth_names;
+	vector<fs::path> background_depth_names;
+	vector<fs::path> cloud_names;
 	//path used during objectdetection
 	string query_directory = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/query_models";
 	string scene_directory = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/SOR_50";
 	vector<fs::path> query_names;
 	vector<fs::path> scene_names;
-
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
+
+	//Parameters used during objectdetection
 	string object = "muttern_schraeg";
 	string dataset = "23_04_20";
 	string preprocessor_mode = "3d_filtered";
 	string transformation = "clustered";
-
+	vector<float> keypointdetector_threshold = { 0.7f };
+	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
+	float modelResolution, sceneResolution;
 	vector<tuple<string, vector<double>>> angles;
 
 	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
-//Unordered filtering playground
-#if 1
+	//Unordered filtering playground
+	#if 0
 	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
 	{
@@ -654,10 +649,10 @@ int main(int argc, char* argv[])
 		pcl::io::savePLYFileASCII(filename, *filtered);
 	}
 	#endif
-#endif
+	#endif
 	
 	//Enable if clouds need to be generated first
-	#if 0
+	#if 1
 
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
