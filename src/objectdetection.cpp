@@ -1,3 +1,4 @@
+//Disclaimer
 /*
 Parts of this code were taken from:
 https://github.com/saimanoj18/iros_bshot
@@ -28,16 +29,18 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include <pcl/filters/shadowpoints.h>
 #include <random>
 
-#ifndef isshot
-#define isshot 1	//For SHOT-Descriptor use 1 for FPFH 0
-#endif
-
 //Namespaces
 namespace fs = boost::filesystem;
 using namespace std;
 using namespace pcl;
 
-//Model is to be matched in scene
+//Typedefs
+typedef pcl::PointXYZINormal PointTypeFull;
+typedef pcl::PointXYZI PointTypeIO;
+
+#ifndef isshot
+#define isshot 1	//For SHOT-Descriptor use 1 for FPFH 0
+#endif
 
 clock_t start, end_time;
 pcl::Correspondences corr;
@@ -56,8 +59,6 @@ string descriptor = "B_SHOT";
 const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
 #endif
-typedef pcl::PointXYZINormal PointTypeFull;
-typedef pcl::PointXYZI PointTypeIO;
 
 Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
 	cout << "# Iterations: " << RansacRejector.getMaximumIterations() << endl;
@@ -516,7 +517,54 @@ int main(int argc, char* argv[])
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
 
-	//Clouds used during cloud generation
+	/*
+	______
+	| ___ \
+	| |_/ /__ _  _ __  __ _  _ __ ___   ___
+	|  __// _` || '__|/ _` || '_ ` _ \ / __|
+	| |  | (_| || |  | (_| || | | | | |\__ \
+	\_|   \__,_||_|   \__,_||_| |_| |_||___/
+	Params used during cloudgen & objectdetection
+	*/
+	string object = "whitebottle";
+	string dataset = "l2score_eval";
+	string preprocessor_mode = "3d_filtered";
+	string transformation = "clustered";
+	vector<float> keypointdetector_threshold = { 0.7f };
+	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
+	vector<tuple<string, vector<double>>> angles;
+	float modelResolution, sceneResolution;
+	/*
+	______       _    _
+	| ___ \     | |  | |
+	| |_/ /__ _ | |_ | |__   ___
+	|  __// _` || __|| '_ \ / __|
+	| |  | (_| || |_ | | | |\__ \
+	\_|   \__,_| \__||_| |_||___/
+	Paths used during cloudgen
+	*/
+	string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/"+object;
+	string depth_extension = ".txt";
+	string cloud_directory = "../../../../clouds/" + dataset + "/"+object;
+	vector<fs::path> depth_names;
+	vector<fs::path> cloud_names;
+	//Paths used during objectdetection
+	string query_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + "/experimental/query_models";
+	string scene_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + "/experimental/SOR_50";
+	string pr_root = "../../../../PR/Buch";
+	string stats_root = "../../../../stats";
+	vector<fs::path> query_names;
+	vector<fs::path> scene_names;
+
+	/*
+	 _____  _                    _
+	/  __ \| |                  | |
+	| /  \/| |  ___   _   _   __| | ___
+	| |    | | / _ \ | | | | / _` |/ __|
+	| \__/\| || (_) || |_| || (_| |\__ \
+	 \____/|_| \___/  \__,_| \__,_||___/
+	 Clouds used during cloud generation
+	*/
 	pcl::PointCloud<pcl::PointXYZ> model_cloud;
 	pcl::PointCloud<pcl::PointXYZ> background_cloud;
 	pcl::PointCloud<pcl::PointXYZ> filtered_model;
@@ -528,34 +576,6 @@ int main(int argc, char* argv[])
 	pcl::PointCloud<PointType> model;
 	pcl::PointCloud<PointType> scene;
 
-	//Paths used during cloudgen
-	string model_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/model";
-	string background_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/background";
-	string depth_extension = ".txt";
-	string cloud_directory = "../../../../clouds/20_03_20/WB/0_tran/unfiltered";
-	vector<fs::path> model_depth_names;
-	vector<fs::path> background_depth_names;
-	vector<fs::path> cloud_names;
-	//path used during objectdetection
-	string query_directory = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/query_models";
-	string scene_directory = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/SOR_50";
-	vector<fs::path> query_names;
-	vector<fs::path> scene_names;
-	string pr_root = "../../../../PR/Buch";
-	string stats_root = "../../../../stats";
-
-	//Parameters used during objectdetection
-	string object = "muttern_schraeg";
-	string dataset = "23_04_20";
-	string preprocessor_mode = "3d_filtered";
-	string transformation = "clustered";
-	vector<float> keypointdetector_threshold = { 0.7f };
-	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
-	float modelResolution, sceneResolution;
-	vector<tuple<string, vector<double>>> angles;
-
-	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
-	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
 	//Unordered filtering playground
 	#if 0
@@ -652,43 +672,42 @@ int main(int argc, char* argv[])
 	#endif
 	
 	//Enable if clouds need to be generated first
-	#if 1
-
-	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
+	#if 0
+	get_all_file_names(depth_directory, depth_extension, depth_names);
+	std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-	//filtered_background = CloudCreator.median_filter_cloud(background_cloud, 4);
-	//CloudCreator.show_cloud(filtered_background);
-
-	for (int i = 0; i < model_depth_names.size(); ++i) {
+	CloudCreator.show_cloud(background_cloud);
+	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
+	CloudCreator.show_cloud(filtered_background);
+	
+	//Pop first element (background without model)
+	depth_names.erase(depth_names.begin());
+	for (int i = 0; i < depth_names.size(); ++i) {
 		vector<tuple<string, float>> creation_stats;
-		std::string model_depth_filename = model_depth_directory + "/" + model_depth_names[i].string();
+		std::string model_depth_filename = depth_directory + "/" + depth_names[i].string();
 		time_meas();
 		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
 		creation_stats.push_back(time_meas("time_textToDistance"));
 		time_meas();
 		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
+		CloudCreator.show_cloud(model_cloud);
 		creation_stats.push_back(time_meas("time_distanceToCloud"));
 		time_meas();
-		//filtered_model = CloudCreator.median_filter_cloud(model_cloud, 4);
+		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
+		CloudCreator.show_cloud(filtered_model);
 		creation_stats.push_back(time_meas("time_medianfilter"));
 		time_meas();
-		final_cloud = CloudCreator.remove_background(model_cloud, background_cloud, 0.005f);
-
+		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.005f);
+		CloudCreator.show_cloud(final_cloud);
 		creation_stats.push_back(time_meas("time_backgroundRemoval"));
 		//roi_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.1f);
 		temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),15);
-		string filename = cloud_directory + "/" + background_depth_names[i].string();
+		string filename = cloud_directory + "/" + depth_names[i].string();
 		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 		string statistics = create_writable_stats(creation_stats);
 		string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 		pcl::io::savePLYFileASCII(substr, temp_cloud);
-	
-
-		CloudCreator.show_cloud(temp_cloud);
-		//CloudCreator.show_cloud(temp_cloud);
-		
-		//pcl::io::savePLYFileASCII(substr, temp_cloud);
 		//FileHandler.writeToFile(statistics, stats_filename);
 	}
 	#endif
