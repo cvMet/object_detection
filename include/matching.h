@@ -30,36 +30,36 @@ public:
 
 	void calculateCorrespondences(float threshold) {
 #if isshot
-		int maxSize = std::max(desc.modelDescriptor_.size(), desc.sceneDescriptor_.size());
+		int maxSize = std::max(desc.queryDescriptor_.size(), desc.targetDescriptor_.size());
 		int* dist = new int[maxSize];
-		int* sceneNn = new int[desc.sceneDescriptor_.size()];
-		int* modelNn = new int[desc.modelDescriptor_.size()];
-		int* firstNnValue = new int[desc.modelDescriptor_.size()];;
-		int* secondNnValue = new int[desc.modelDescriptor_.size()];;
+		int* sceneNn = new int[desc.targetDescriptor_.size()];
+		int* modelNn = new int[desc.queryDescriptor_.size()];
+		int* firstNnValue = new int[desc.queryDescriptor_.size()];;
+		int* secondNnValue = new int[desc.queryDescriptor_.size()];;
 		int minIndex;
 		//Search nearest neighbor for every keypoint of the model
-		for (int i = 0; i < (int)desc.modelDescriptor_.size(); ++i)
+		for (int i = 0; i < (int)desc.queryDescriptor_.size(); ++i)
 		{
-			for (int k = 0; k < (int)desc.sceneDescriptor_.size(); ++k)
+			for (int k = 0; k < (int)desc.targetDescriptor_.size(); ++k)
 			{
-				dist[k] = (int)(desc.modelDescriptor_[i].bits ^ desc.sceneDescriptor_[k].bits).count();	//XOR to get the Hamming distance
+				dist[k] = (int)(desc.queryDescriptor_[i].bits ^ desc.targetDescriptor_[k].bits).count();	//XOR to get the Hamming distance
 			}
-			firstNnValue[i] = minVect(dist, (int)desc.sceneDescriptor_.size(), &minIndex); //get nearest neighbor
+			firstNnValue[i] = minVect(dist, (int)desc.targetDescriptor_.size(), &minIndex); //get nearest neighbor
 			modelNn[i] = minIndex;
-			secondNnValue[i] = secondMinVect(dist, (int)desc.sceneDescriptor_.size(), firstNnValue[i], &minIndex); //get second nearest neighbor
+			secondNnValue[i] = secondMinVect(dist, (int)desc.targetDescriptor_.size(), firstNnValue[i], &minIndex); //get second nearest neighbor
 			
 		}
 		//Search nearest neighbor for every keypoint of the scene
-		for (int i = 0; i < (int)desc.sceneDescriptor_.size(); ++i)
+		for (int i = 0; i < (int)desc.targetDescriptor_.size(); ++i)
 		{
-			for (int k = 0; k < (int)desc.modelDescriptor_.size(); ++k) {
-				dist[k] = (int)(desc.sceneDescriptor_[i].bits ^ desc.modelDescriptor_[k].bits).count();
+			for (int k = 0; k < (int)desc.queryDescriptor_.size(); ++k) {
+				dist[k] = (int)(desc.targetDescriptor_[i].bits ^ desc.queryDescriptor_[k].bits).count();
 			}			
-			minVect(dist, (int)desc.modelDescriptor_.size(), &minIndex);
+			minVect(dist, (int)desc.queryDescriptor_.size(), &minIndex);
 			sceneNn[i] = minIndex;
 		}
 
-		for (int i = 0; i < (int)desc.modelDescriptor_.size(); ++i)
+		for (int i = 0; i < (int)desc.queryDescriptor_.size(); ++i)
 		{
 			if (sceneNn[modelNn[i]] == i) //checks if points are "the same" to make sure no points are matched twice
 			{

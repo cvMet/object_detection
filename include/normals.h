@@ -6,8 +6,8 @@
 class Normals
 {
 public:
-	pcl::PointCloud<pcl::Normal> modelNormals_, sceneNormals_;
-	pcl::PointCloud<pcl::PointXYZ> model, scene;
+	pcl::PointCloud<pcl::Normal> queryNormals_, targetNormals_;
+	pcl::PointCloud<pcl::PointXYZ> query, target;
 
 	void calculateNormals(float radiusModel, float radiusScene)
 	{
@@ -18,29 +18,29 @@ public:
 		normalEstimation.setViewPoint(0, 0, 10);
 		//Estimate Model Normals
 		normalEstimation.setRadiusSearch(radiusModel);
-		normalEstimation.setInputCloud(model.makeShared());
-		normalEstimation.compute(modelNormals_);
+		normalEstimation.setInputCloud(query.makeShared());
+		normalEstimation.compute(queryNormals_);
 		//Estimate Scene Normals
 		normalEstimation.setRadiusSearch(radiusScene);
-		normalEstimation.setInputCloud(scene.makeShared());
-		normalEstimation.compute(sceneNormals_);
+		normalEstimation.setInputCloud(target.makeShared());
+		normalEstimation.compute(targetNormals_);
 	}
 
 	void removeNaNNormals() {
 		//Remove NAN normals and their correspondences in model and scene
 		std::vector<int> index;
-		pcl::removeNaNNormalsFromPointCloud(modelNormals_, modelNormals_, index);
+		pcl::removeNaNNormalsFromPointCloud(queryNormals_, queryNormals_, index);
 		pcl::PointCloud<pcl::PointXYZ> tempCloud;
-		for (int i = 0; i < modelNormals_.size(); ++i) {
-			tempCloud.push_back(model.at(index[i]));
+		for (int i = 0; i < queryNormals_.size(); ++i) {
+			tempCloud.push_back(query.at(index[i]));
 		}
-		model = tempCloud;
-		pcl::removeNaNNormalsFromPointCloud(sceneNormals_, sceneNormals_, index);
+		query = tempCloud;
+		pcl::removeNaNNormalsFromPointCloud(targetNormals_, targetNormals_, index);
 		tempCloud.clear();
-		for (int i = 0; i < sceneNormals_.size(); ++i) {
-			tempCloud.push_back(scene.at(index[i]));
+		for (int i = 0; i < targetNormals_.size(); ++i) {
+			tempCloud.push_back(target.at(index[i]));
 		}
-		scene = tempCloud;
+		target = tempCloud;
 	}
 };
 #endif

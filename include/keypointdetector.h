@@ -10,7 +10,7 @@
 class KeypointDetector
 {
 public:
-	pcl::PointCloud<pcl::PointXYZ> modelKeypoints_, sceneKeypoints_;
+	pcl::PointCloud<pcl::PointXYZ> queryKeypoints_, targetKeypoints_;
 	void  calculateVoxelgridKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, float leaf_size_model, float leaf_size_scene)
 	{
 		// Find Keypoints on the input cloud
@@ -18,11 +18,11 @@ public:
 		voxelgrid.setLeafSize(leaf_size_model, leaf_size_model, leaf_size_model);
 
 		voxelgrid.setInputCloud(model.makeShared());
-		voxelgrid.filter(modelKeypoints_);
+		voxelgrid.filter(queryKeypoints_);
 
 		voxelgrid.setLeafSize(leaf_size_scene, leaf_size_scene, leaf_size_scene);
 		voxelgrid.setInputCloud(scene.makeShared());
-		voxelgrid.filter(sceneKeypoints_);
+		voxelgrid.filter(targetKeypoints_);
 	}
 
 	void calculateIssKeypoints(pcl::PointCloud<pcl::PointXYZ>& out, pcl::PointCloud<pcl::PointXYZ> cloud, pcl::PointCloud<pcl::Normal> normals, float resolution, float threshold, int neighbor) {

@@ -37,31 +37,31 @@ public:
 	Normals NormalEstimator;
 
 #if isshot
-	std::vector<bshot_descriptor> modelDescriptor_;
-	std::vector<bshot_descriptor> sceneDescriptor_;
+	std::vector<bshot_descriptor> queryDescriptor_;
+	std::vector<bshot_descriptor> targetDescriptor_;
 #else
 	pcl::PointCloud<pcl::FPFHSignature33> modelDescriptor_;
 	pcl::PointCloud<pcl::FPFHSignature33> sceneDescriptor_;
 #endif
 
-	pcl::PointCloud<pcl::PointXYZ> model_, scene_;
+	pcl::PointCloud<pcl::PointXYZ> query_, target_;
 
 	void calculateDescriptor(float modelSupportradius, float sceneSupportradius) {
 #if isshot
 
 		bshot bshotEstimation;
-		bshotEstimation.cloud1_normals = NormalEstimator.modelNormals_;
-		bshotEstimation.cloud2_normals = NormalEstimator.sceneNormals_;
-		bshotEstimation.cloud1_keypoints = KeypointDetector.modelKeypoints_;
-		bshotEstimation.cloud2_keypoints = KeypointDetector.sceneKeypoints_;
-		bshotEstimation.cloud1 = model_;
-		bshotEstimation.cloud2 = scene_;
+		bshotEstimation.cloud1_normals = NormalEstimator.queryNormals_;
+		bshotEstimation.cloud2_normals = NormalEstimator.targetNormals_;
+		bshotEstimation.cloud1_keypoints = KeypointDetector.queryKeypoints_;
+		bshotEstimation.cloud2_keypoints = KeypointDetector.targetKeypoints_;
+		bshotEstimation.cloud1 = query_;
+		bshotEstimation.cloud2 = target_;
 
 		bshotEstimation.calculate_SHOT(modelSupportradius, sceneSupportradius);
 		bshotEstimation.compute_bshot();
 
-		modelDescriptor_ = bshotEstimation.cloud1_bshot;
-		sceneDescriptor_ = bshotEstimation.cloud2_bshot;
+		queryDescriptor_ = bshotEstimation.cloud1_bshot;
+		targetDescriptor_ = bshotEstimation.cloud2_bshot;
 #else 
 		pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfhEstimation;
 

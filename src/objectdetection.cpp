@@ -60,7 +60,7 @@ const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
 #endif
 
-Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ>& RansacRejector) {
 	cout << "# Iterations: " << RansacRejector.getMaximumIterations() << endl;
 	Eigen::Matrix4f mat = RansacRejector.getBestTransformation();
 	cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << mat << endl;
@@ -68,15 +68,15 @@ Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::Corresponden
 	return mat;
 }
 
-Eigen::Matrix4f icp(pcl::PointCloud<PointType> model, pcl::PointCloud<PointType> scene) {
+Eigen::Matrix4f icp(pcl::PointCloud<PointType> query, pcl::PointCloud<PointType> target) {
 	Eigen::Matrix4f mat, guess;
-	guess <<	-1, 0, 0, 0,
-				0, 1, 0, 0,
-				0, 0, -1, 0,
-				0, 0, 0, 1;
+	guess << -1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, -1, 0,
+		0, 0, 0, 1;
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-	icp.setInputSource(model.makeShared());
-	icp.setInputTarget(scene.makeShared());
+	icp.setInputSource(query.makeShared());
+	icp.setInputTarget(target.makeShared());
 	pcl::PointCloud<pcl::PointXYZ> aligned_cloud;
 	icp.align(aligned_cloud);
 	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
@@ -91,12 +91,12 @@ pcl::PointCloud<PointType> load_3dmodel(string filename, string fileformat) {
 		std::cout << "Filename read" << endl;
 		if (pcl::io::loadPLYFile(filename, temp_cloud) == -1)
 		{
-			std::cout << "Error loading model cloud." << std::endl;
+			std::cout << "Error loading query cloud." << std::endl;
 			return (temp_cloud);
 		}
 	}
 	else {
-		std::cout << "Unknown model file type. Check if there are any dots in the files path." << endl;
+		std::cout << "Unknown query file type. Check if there are any dots in the files path." << endl;
 		return temp_cloud;
 	}
 	return temp_cloud;
@@ -117,7 +117,7 @@ pcl::PointCloud<PointType> addGaussianNoise(pcl::PointCloud<PointType> pointClou
 	return pointCloud;
 }
 
-pcl::Correspondences get_true_positives(float &distance_threshold, std::vector<float> &euclidean_distances){
+pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances) {
 	pcl::Correspondences temp;
 	for (int i = 0; i < corr.size(); ++i) {
 		if (euclidean_distances[i] < distance_threshold) {
@@ -184,7 +184,7 @@ std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction_ordered_outp
 	int j = 0;
 	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>(320,240));
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>(320, 240));
 		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
 			cloud_cluster->points[*pit] = (input_cloud.points[*pit]);
 		}
@@ -226,29 +226,29 @@ std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction(pcl::PointCl
 	return clusters;
 }
 
-std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> model_keypoints, const pcl::PointCloud<pcl::PointXYZ> scene_keypoints) {
+std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> query_keypoints, const pcl::PointCloud<pcl::PointXYZ> target_keypoints) {
 	std::vector<float> distance;
 	for (int i = 0; i < corr.size(); ++i) {
 		distance.push_back(
-			pow((model_keypoints.at(corr.at(i).index_query).x - scene_keypoints.at(corr.at(i).index_match).x), 2) +
-			pow((model_keypoints.at(corr.at(i).index_query).y - scene_keypoints.at(corr.at(i).index_match).y), 2) +
-			pow((model_keypoints.at(corr.at(i).index_query).z - scene_keypoints.at(corr.at(i).index_match).z), 2)
+			pow((query_keypoints.at(corr.at(i).index_query).x - target_keypoints.at(corr.at(i).index_match).x), 2) +
+			pow((query_keypoints.at(corr.at(i).index_query).y - target_keypoints.at(corr.at(i).index_match).y), 2) +
+			pow((query_keypoints.at(corr.at(i).index_query).z - target_keypoints.at(corr.at(i).index_match).z), 2)
 		);
 		distance[i] = sqrt(distance[i]);
 	}
 	return distance;
 }
 
-vector<tuple<string, float>> assemble_stats(vector<tuple<string, float>> processing_times, pcl::PointCloud<PointType> model, pcl::PointCloud<PointType> scene, float modelResolution, float sceneResolution, KeypointDetector& Detector) {
+vector<tuple<string, float>> assemble_stats(vector<tuple<string, float>> processing_times, pcl::PointCloud<PointType> query, pcl::PointCloud<PointType> target, float queryResolution, float targetResolution, KeypointDetector& Detector) {
 	vector<tuple<string, float>> stats;
 
 	stats.push_back(make_tuple("suport_radius", float(supportRadius_)));
-	stats.push_back(make_tuple("points_model_cloud", float(model.points.size())));
-	stats.push_back(make_tuple("points_scene_cloud", float(scene.points.size())));
-	stats.push_back(make_tuple("model_resolution", float(modelResolution)));
-	stats.push_back(make_tuple("scene_resolution", float(sceneResolution)));
-	stats.push_back(make_tuple("model_keypoints", float(Detector.modelKeypoints_.size())));
-	stats.push_back(make_tuple("scene_keypoints", float(Detector.sceneKeypoints_.size())));
+	stats.push_back(make_tuple("points_query_cloud", float(query.points.size())));
+	stats.push_back(make_tuple("points_target_cloud", float(target.points.size())));
+	stats.push_back(make_tuple("query_resolution", float(queryResolution)));
+	stats.push_back(make_tuple("target_resolution", float(targetResolution)));
+	stats.push_back(make_tuple("query_keypoints", float(Detector.queryKeypoints_.size())));
+	stats.push_back(make_tuple("target_keypoints", float(Detector.targetKeypoints_.size())));
 
 	for (int i = 0; i < processing_times.size(); ++i) {
 		stats.push_back(processing_times[i]);
@@ -258,11 +258,11 @@ vector<tuple<string, float>> assemble_stats(vector<tuple<string, float>> process
 
 string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold) {
 	std::string data = "";
-	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
-		data = std::to_string(Detector.sceneKeypoints_.size()) + "," + std::to_string(distance_threshold) +  "\n";
+	if (Detector.targetKeypoints_.size() < Detector.queryKeypoints_.size()) {
+		data = std::to_string(Detector.targetKeypoints_.size()) + "," + std::to_string(distance_threshold) + "\n";
 	}
 	else {
-		data = std::to_string(Detector.modelKeypoints_.size()) + "," + std::to_string(distance_threshold) +  "\n";
+		data = std::to_string(Detector.queryKeypoints_.size()) + "," + std::to_string(distance_threshold) + "\n";
 	}
 	for (int i = 0; i < corr.size(); ++i)
 	{
@@ -284,9 +284,9 @@ string create_writable_stats(vector<tuple<string, float>> stats) {
 string create_writable_angles(vector<tuple<string, vector<double>>> angles) {
 	std::string data = "";
 	for (int i = 0; i < angles.size(); ++i) {
-		data += get<0>(angles[i])+",";
-			for(int j = 0; j < get<1>(angles[i]).size(); ++j) {
-				data += std::to_string(get<1>(angles[i])[j])+',';
+		data += get<0>(angles[i]) + ",";
+		for (int j = 0; j < get<1>(angles[i]).size(); ++j) {
+			data += std::to_string(get<1>(angles[i])[j]) + ',';
 		};
 		data += "\n";
 	}
@@ -304,11 +304,11 @@ string concatenate_distances(std::vector<float>& euclidean_distance) {
 }
 
 string get_fileformat(string filename) {
-	//Get fileformat of the model -> last three letters of filename
+	//Get fileformat of the query -> last three letters of filename
 	return filename.std::string::substr(filename.length() - 3);
 }
 
-string get_identifier(string filename, int name_pos, int extension_pos){
+string get_identifier(string filename, int name_pos, int extension_pos) {
 	return filename.substr(name_pos, (extension_pos - name_pos));
 }
 
@@ -345,10 +345,10 @@ double compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& 
 	return res;
 }
 
-void ransac_rejection(pcl::Correspondences corresp, pcl::PointCloud<pcl::PointXYZ> modelKeypoints, pcl::PointCloud<pcl::PointXYZ> sceneKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> &RansacRejector) {
+void ransac_rejection(pcl::Correspondences corresp, pcl::PointCloud<pcl::PointXYZ> queryKeypoints, pcl::PointCloud<pcl::PointXYZ> targetKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ>& RansacRejector) {
 	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
-	RansacRejector.setInputSource(modelKeypoints.makeShared());
-	RansacRejector.setInputTarget(sceneKeypoints.makeShared());
+	RansacRejector.setInputSource(queryKeypoints.makeShared());
+	RansacRejector.setInputTarget(targetKeypoints.makeShared());
 	//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
 	RansacRejector.setInlierThreshold(0.005);
 	RansacRejector.setInputCorrespondences(correspond);
@@ -372,7 +372,7 @@ void time_meas() {
 
 tuple<string, float> time_meas(string action) {
 	double cpuTimeUsed;
-	if (!running){
+	if (!running) {
 		running = true;
 		start = clock();
 	}
@@ -387,15 +387,15 @@ tuple<string, float> time_meas(string action) {
 
 void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector) {
 	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
-	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.modelKeypoints_.size()) << endl;
+	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.queryKeypoints_.size()) << endl;
 };
 
 void accumulate_keypoints(KeypointDetector& Detector) {
-	if (Detector.sceneKeypoints_.size() < Detector.modelKeypoints_.size()) {
-		accumulated_keypoints += Detector.sceneKeypoints_.size();
+	if (Detector.targetKeypoints_.size() < Detector.queryKeypoints_.size()) {
+		accumulated_keypoints += Detector.targetKeypoints_.size();
 	}
 	else {
-		accumulated_keypoints += Detector.modelKeypoints_.size();
+		accumulated_keypoints += Detector.queryKeypoints_.size();
 	}
 }
 
@@ -404,9 +404,9 @@ vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 	double neg_sinTheta = transformation_matrix(2, 0);
 	double sinPhicosTheta = transformation_matrix(2, 1);
 	double cosThetacosPsi = transformation_matrix(0, 0);
-	
-	double theta = -asin(neg_sinTheta)* 180 / 3.14159265;
-	double phi = asin(sinPhicosTheta / cos((theta* 3.14159265/180))) * 180 / 3.14159265;
+
+	double theta = -asin(neg_sinTheta) * 180 / 3.14159265;
+	double phi = asin(sinPhicosTheta / cos((theta * 3.14159265 / 180))) * 180 / 3.14159265;
 	double psi = acos(cosThetacosPsi / cos((theta * 3.14159265 / 180))) * 180 / 3.14159265;
 
 	angles.push_back(theta);
@@ -526,14 +526,13 @@ int main(int argc, char* argv[])
 	\_|   \__,_||_|   \__,_||_| |_| |_||___/
 	Params used during cloudgen & objectdetection
 	*/
-	string object = "whitebottle";
-	string dataset = "l2score_eval_v2";
+	string object = "mutter";
+	string dataset = "threshold_eval";
 	string preprocessor_mode = "3d_filtered";
-	string transformation = "";
 	vector<float> keypointdetector_threshold = { 0.7f };
 	vector<int> keypointdetector_nof_neighbors = { 5 };
 	vector<tuple<string, vector<double>>> angles;
-	float modelResolution, sceneResolution;
+	float queryResolution, targetResolution;
 	/*
 	______       _    _
 	| ___ \     | |  | |
@@ -549,12 +548,12 @@ int main(int argc, char* argv[])
 	vector<fs::path> depth_names;
 	vector<fs::path> cloud_names;
 	//Paths used during objectdetection
-	string query_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + transformation;
-	string scene_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + transformation;
+	string query_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode;
+	string target_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode;
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
 	vector<fs::path> query_names;
-	vector<fs::path> scene_names;
+	vector<fs::path> target_names;
 	/*
 	 _____  _                    _
 	/  __ \| |                  | |
@@ -564,20 +563,20 @@ int main(int argc, char* argv[])
 	 \____/|_| \___/  \__,_| \__,_||___/
 	 Clouds used during cloud generation
 	*/
-	pcl::PointCloud<pcl::PointXYZ> model_cloud;
+	pcl::PointCloud<pcl::PointXYZ> query_cloud;
 	pcl::PointCloud<pcl::PointXYZ> background_cloud;
-	pcl::PointCloud<pcl::PointXYZ> filtered_model;
+	pcl::PointCloud<pcl::PointXYZ> filtered_query;
 	pcl::PointCloud<pcl::PointXYZ> filtered_background;
 	pcl::PointCloud<pcl::PointXYZ> final_cloud;
 	pcl::PointCloud<pcl::PointXYZ> roi_cloud;
 	pcl::PointCloud<pcl::PointXYZ> temp_cloud;
 	//Clouds used during objectdetection
-	pcl::PointCloud<PointType> model;
-	pcl::PointCloud<PointType> scene;
+	pcl::PointCloud<PointType> query;
+	pcl::PointCloud<PointType> target;
 
 
 	//Unordered filtering playground
-	#if 0
+#if 0
 	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
 	{
@@ -592,21 +591,21 @@ int main(int argc, char* argv[])
 		vector<float> distances;
 		pcl::PointXYZ query_point = unordered_cloud->at(point);
 		//Radius based search
-		#if 0
+#if 0
 		tree->radiusSearch(query_point, 0.005f, neighbors, distances);
-		#endif
+#endif
 		//NN based search
-		#if 1
+#if 1
 		tree->nearestKSearch(query_point, 10, neighbors, distances);
-		#endif
+#endif
 		neighbor_indices.push_back(neighbors);
 		neighbor_distances.push_back(distances);
 	}
 	pcl::PointXYZ filtered_point;
-	vector<int> max_points_to_process = {3,5,10,100 };
+	vector<int> max_points_to_process = { 3,5,10,100 };
 
 	//MEAN FILTERING
-	#if 0
+#if 0
 	for (int point = 0; point < neighbor_indices.size(); ++point) {
 		if (neighbor_indices[point].size() < max_points_to_process) {
 			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
@@ -630,10 +629,10 @@ int main(int argc, char* argv[])
 		}
 		filtered->points.push_back(filtered_point);
 	}
-	#endif
-	
+#endif
+
 	//MEDIAN FILTERING
-	#if 1
+#if 1
 	for (int max = 0; max < max_points_to_process.size(); ++max) {
 		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
 		for (int point = 0; point < neighbor_indices.size(); ++point) {
@@ -667,11 +666,11 @@ int main(int argc, char* argv[])
 		string filename = "../../../../clouds/mastercloud/mastercloud_median_NN" + to_string(max_points_to_process[max]) + ".ply";
 		pcl::io::savePLYFileASCII(filename, *filtered);
 	}
-	#endif
-	#endif
-	
+#endif
+#endif
+
 	//Enable if clouds need to be generated first
-	#if 0
+#if 0
 	get_all_file_names(depth_directory, depth_extension, depth_names);
 	std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
@@ -679,25 +678,25 @@ int main(int argc, char* argv[])
 	//CloudCreator.show_cloud(background_cloud);
 	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 5);
 	//CloudCreator.show_cloud(filtered_background);
-	
-	//Pop first element (background without model)
+
+	//Pop first element (background without query)
 	depth_names.erase(depth_names.begin());
 	for (int i = 0; i < depth_names.size(); ++i) {
 		vector<tuple<string, float>> creation_stats;
-		std::string model_depth_filename = depth_directory + "/" + depth_names[i].string();
+		std::string query_depth_filename = depth_directory + "/" + depth_names[i].string();
 		time_meas();
-		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
+		std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
 		creation_stats.push_back(time_meas("time_textToDistance"));
 		time_meas();
-		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
-		//CloudCreator.show_cloud(model_cloud);
+		query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
+		//CloudCreator.show_cloud(query_cloud);
 		creation_stats.push_back(time_meas("time_distanceToCloud"));
 		time_meas();
-		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 5);
-		//CloudCreator.show_cloud(filtered_model);
+		filtered_query = CloudCreator.median_filter_cloud(query_cloud, 5);
+		//CloudCreator.show_cloud(filtered_query);
 		creation_stats.push_back(time_meas("time_medianfilter"));
 		time_meas();
-		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.005f);
+		final_cloud = CloudCreator.remove_background(filtered_query, filtered_background, 0.005f);
 		//CloudCreator.show_cloud(final_cloud);
 		creation_stats.push_back(time_meas("time_backgroundRemoval"));
 		//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
@@ -708,10 +707,10 @@ int main(int argc, char* argv[])
 		pcl::io::savePLYFileASCII(substr, final_cloud);
 		//FileHandler.writeToFile(statistics, stats_filename);
 	}
-	#endif
-	
+#endif
+
 	//Enable if several clouds should get merged into one cloud
-	#if 0
+#if 0
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
 	std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
@@ -720,26 +719,26 @@ int main(int argc, char* argv[])
 	//Enable if you want to create unfiltered clouds that stay organized
 #if 0
 	//Paths used during cloudgen
-	model_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/model";
+	query_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/query";
 	background_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/background";
 	depth_extension = ".txt";
 	cloud_directory = "../../../../clouds/mastercloud/unfiltered";
 
-	model_depth_names.clear();
+	query_depth_names.clear();
 	background_depth_names.clear();
-	get_all_file_names(model_depth_directory, depth_extension, model_depth_names);
+	get_all_file_names(query_depth_directory, depth_extension, query_depth_names);
 	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
 	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 
-	for (int i = 0; i < model_depth_names.size(); ++i) {
-		std::string model_depth_filename = model_depth_directory + "/" + model_depth_names[i].string();
-		std::vector<std::vector<float>> model_distance_array = FileHandler.melexis_txt_to_distance_array(model_depth_filename, rows, columns);
-		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
-		final_cloud = CloudCreator.remove_background(model_cloud, background_cloud, 0.0055f);
-		CloudCreator.show_cloud(model_cloud);
+	for (int i = 0; i < query_depth_names.size(); ++i) {
+		std::string query_depth_filename = query_depth_directory + "/" + query_depth_names[i].string();
+		std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
+		query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
+		final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.0055f);
+		CloudCreator.show_cloud(query_cloud);
 		CloudCreator.show_cloud(background_cloud);
 		CloudCreator.show_cloud(final_cloud);
 		string filename = cloud_directory + "/" + background_depth_names[i].string();
@@ -786,26 +785,26 @@ int main(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		float permutation_res = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
-		
+
 		//Estimate Normals
-		NormalEstimator.model = *origin_cloud;
-		NormalEstimator.scene = *clouds[cloud];
+		NormalEstimator.query = *origin_cloud;
+		NormalEstimator.target = *clouds[cloud];
 		NormalEstimator.calculateNormals(5 * origin_res, 5 * permutation_res);
 		NormalEstimator.removeNaNNormals();
-		*origin_cloud = NormalEstimator.model;
-		*clouds[cloud] = NormalEstimator.scene;
+		*origin_cloud = NormalEstimator.query;
+		*clouds[cloud] = NormalEstimator.target;
 
 		//Detect keypoints
 		time_meas();
-		KeypointDetector.calculateIssKeypoints(KeypointDetector.modelKeypoints_, *origin_cloud, NormalEstimator.modelNormals_, origin_res, 0.9f, 5);
-		KeypointDetector.calculateIssKeypoints(KeypointDetector.sceneKeypoints_, *clouds[cloud], NormalEstimator.sceneNormals_, permutation_res, 0.9f, 5);
+		KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, *origin_cloud, NormalEstimator.queryNormals_, origin_res, 0.9f, 5);
+		KeypointDetector.calculateIssKeypoints(KeypointDetector.targetKeypoints_, *clouds[cloud], NormalEstimator.targetNormals_, permutation_res, 0.9f, 5);
 
 		//Calculate descriptor for each keypoint
 		time_meas();
 		Describer.NormalEstimator = NormalEstimator;
 		Describer.KeypointDetector = KeypointDetector;
-		Describer.model_ = *origin_cloud;
-		Describer.scene_ = *clouds[cloud];
+		Describer.query_ = *origin_cloud;
+		Describer.target_ = *clouds[cloud];
 		Describer.calculateDescriptor(30 * origin_res, 30 * permutation_res);
 
 		//Matching
@@ -815,9 +814,9 @@ int main(int argc, char* argv[])
 
 		// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
 		RansacRejector.setMaximumIterations(1000);
-		ransac_rejection(Matcher.corresp, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
+		ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
 		Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
-		pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, ransac_transformation);
+		pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
 		pcl::transformPointCloud(*origin_cloud, *temp_cloud, ransac_transformation);
 
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -912,252 +911,237 @@ int main(int argc, char* argv[])
 	}
 	*master_cloud = CloudCreator.remove_outliers(master_cloud, 50);
 	pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud_SOR.ply", *master_cloud);
-	#endif
-		
+#endif
+
 	//Enable for automated detection process
-	#if 1
+#if 1
 	get_all_file_names(query_directory, ".ply", query_names);
-	get_all_file_names(scene_directory, ".ply", scene_names);
+	get_all_file_names(target_directory, ".ply", target_names);
 
-	for (int query_number = 0; query_number < query_names.size(); ++query_number)
+	string query_filename = query_directory + "/" + query_names[7].string();
+	for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor)
 	{
-		string model_filename = query_directory + "/" + query_names[query_number].string();
-		for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor)
+		for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold)
 		{
-			for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold)
+			for (int target_number = 0; target_number < target_names.size(); ++target_number)
 			{
-				for (int scene_number = 0; scene_number < scene_names.size(); ++scene_number)
-				{
+				vector<tuple<string, float>> processing_times, stats;
+				Normals NormalEstimator;
+				KeypointDetector KeypointDetector;
+				Descriptor Describer;
+				Matching Matcher;
+				string target_filename = target_directory + "/" + target_names[target_number].string();
 
-					vector<tuple<string, float>> processing_times, stats;
-					Normals NormalEstimator;
-					KeypointDetector KeypointDetector;
-					Descriptor Describer;
-					Matching Matcher;
+				int name_pos_query = query_filename.find("2", 0);
+				int ext_pos_query = query_filename.find(".ply", 0);
+				int name_pos = target_filename.find((target_names[target_number].string()), 0);
+				int extension_pos = target_filename.find(".ply", 0);
+				string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
+				string target_identifier = get_identifier(target_filename, name_pos, extension_pos);
 
-					model_filename = "../../../../clouds/23_04_20/ms/3d_filtered/experimental/query_models/M26_0_0_0_0_SOR_50.ply";
-					string scene_filename = scene_directory + "/" + scene_names[scene_number].string();
+				string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+					+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
+					+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+					+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
+				string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+					+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
+					+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+					+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";
 
-					int name_pos_model = model_filename.find("M26", 0);
-					int ext_pos_model = model_filename.find(".ply", 0);
-					int name_pos = scene_filename.find("M26", 0);
-					int extension_pos = scene_filename.find(".ply", 0);
-					string model_identifier = get_identifier(model_filename, name_pos_model, ext_pos_model);
-					string scene_identifier = get_identifier(scene_filename, name_pos, extension_pos);
+				std::string query_fileformat = get_fileformat(query_filename);
+				std::string target_fileformat = get_fileformat(target_filename);
+				query = load_3dmodel(query_filename, query_fileformat);
+				target = load_3dmodel(target_filename, target_fileformat);
+				queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
+				targetResolution = static_cast<float> (compute_cloud_resolution(target.makeShared()));
 
-					string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-						+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
-						+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
-						+ "/" + transformation
-						+ "/" + model_identifier + "_to_" + scene_identifier + ".csv";
-					string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-						+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
-						+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
-						+ "/" + transformation
-						+ "/" + model_identifier + "_to_" + scene_identifier + "_stats.csv";
+				//Estimate Normals
+				time_meas();
+				NormalEstimator.query = query;
+				NormalEstimator.target = target;
+				NormalEstimator.calculateNormals(5 * queryResolution, 5 * targetResolution);
+				NormalEstimator.removeNaNNormals();
+				query = NormalEstimator.query;
+				target = NormalEstimator.target;
+				processing_times.push_back(time_meas("normal estimation"));
+				//Detect keypoints
+				time_meas();
+				KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, query, NormalEstimator.queryNormals_, queryResolution,
+					keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
+				KeypointDetector.calculateIssKeypoints(KeypointDetector.targetKeypoints_, target, NormalEstimator.targetNormals_, targetResolution,
+					keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
+				processing_times.push_back(time_meas("detecting keypoints"));
 
-					std::string model_fileformat = get_fileformat(model_filename);
-					std::string scene_fileformat = get_fileformat(scene_filename);
+				//Calculate descriptor for each keypoint
+				time_meas();
+				Describer.NormalEstimator = NormalEstimator;
+				Describer.KeypointDetector = KeypointDetector;
+				Describer.query_ = query;
+				Describer.target_ = target;
+				Describer.calculateDescriptor(supportRadius_ * queryResolution, supportRadius_ * targetResolution);
+				processing_times.push_back(time_meas("calculating descriptor"));
 
-					model = load_3dmodel(model_filename, model_fileformat);
-					scene = load_3dmodel(scene_filename, scene_fileformat);
-					modelResolution = static_cast<float> (compute_cloud_resolution(model.makeShared()));
-					sceneResolution = static_cast<float> (compute_cloud_resolution(scene.makeShared()));
+				//Matching
+				time_meas();
+				float c_threshold = 1.0f;
+				Matcher.desc = Describer;
+				Matcher.calculateCorrespondences(c_threshold);
+				processing_times.push_back(time_meas("matching"));
 
-					//Estimate Normals
-					time_meas();
-					NormalEstimator.model = model;
-					NormalEstimator.scene = scene;
-					NormalEstimator.calculateNormals(5 * modelResolution, 5 * sceneResolution);
-					NormalEstimator.removeNaNNormals();
-					model = NormalEstimator.model;
-					scene = NormalEstimator.scene;
-					processing_times.push_back(time_meas("normal estimation"));
-					//Detect keypoints
-					time_meas();
-					KeypointDetector.calculateIssKeypoints(KeypointDetector.modelKeypoints_, model, NormalEstimator.modelNormals_, modelResolution,
-						keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
-					KeypointDetector.calculateIssKeypoints(KeypointDetector.sceneKeypoints_, scene, NormalEstimator.sceneNormals_, sceneResolution,
-						keypointdetector_threshold[threshold], keypointdetector_nof_neighbors[neighbor]);
-					processing_times.push_back(time_meas("detecting keypoints"));
+				// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
+				time_meas();
+				RansacRejector.setMaximumIterations(1000);
+				ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
+				Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
+				pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, transformation_matrix);
+				pcl::transformPointCloud(query, query, transformation_matrix);
+				processing_times.push_back(time_meas("Ransac Rejection"));
 
-					//Calculate descriptor for each keypoint
-					time_meas();
-					Describer.NormalEstimator = NormalEstimator;
-					Describer.KeypointDetector = KeypointDetector;
-					Describer.model_ = model;
-					Describer.scene_ = scene;
-					Describer.calculateDescriptor(supportRadius_ * modelResolution, supportRadius_ * sceneResolution);
-					processing_times.push_back(time_meas("calculating descriptor"));
+				// Iterative closest Point ICP
+				time_meas();
+				Eigen::Matrix4f icp_transformation_matrix = icp(query, target);
+				pcl::transformPointCloud(query, query, icp_transformation_matrix);
+				pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, icp_transformation_matrix);
+				processing_times.push_back(time_meas("ICP"));
 
-					//Matching
-					time_meas();
-					float c_threshold = 1.0f;
-					Matcher.desc = Describer;
-					Matcher.calculateCorrespondences(c_threshold);
-					processing_times.push_back(time_meas("matching"));
+				//Calculate euclidean distance of a query keypoint to its matched target keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
+				std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_);
+				float distance_threshold = shotRadius_ * queryResolution / 2;
+				pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+				print_results(true_positives, KeypointDetector);
 
-					// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-					time_meas();
-					RansacRejector.setMaximumIterations(1000);
-					ransac_rejection(Matcher.corresp, KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_, RansacRejector);
-					Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
-					pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, transformation_matrix);
-					pcl::transformPointCloud(model, model, transformation_matrix);
-					processing_times.push_back(time_meas("Ransac Rejection"));
+				//Enable if evaluation according to Guo et al.
+#if 0
+//A match is considered TP if the euclidean distance of a query keypoint to its matched target keypoint is less than half the supportradius
+				pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+				//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
+				pr_filename = "../../../../PR/Guo/" + query_name + "_to_" + target_name + ".csv";
+				std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
+				filehandler.writeToFile(results, pr_filename);
+				print_results(true_positives, KeypointDetector);
+#endif
 
-					// Iterative closest Point ICP
-					time_meas();
-					Eigen::Matrix4f icp_transformation_matrix = icp(model, scene);
-					pcl::transformPointCloud(model, model, icp_transformation_matrix);
-					pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, icp_transformation_matrix);
-					processing_times.push_back(time_meas("ICP"));
+				//Enable if evaluation according to Buch et al.
+#if 1
+				accumulate_keypoints(KeypointDetector);
+				std::string results = concatenate_distances(euclidean_distance);
+				FileHandler.writeToFile(results, pr_filename);
+#endif
+				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+				FileHandler.writeToFile(NOF_keypoints, pr_filename);
+				NOF_keypoints = "";
+				accumulated_keypoints = 0;
+				//corr.clear();
+	//		}
+	//	}
+	//}
+#endif
 
-					vector<double> temp = get_angles(icp_transformation_matrix);
-					angles.push_back(make_tuple(model_identifier + "_to_" + scene_identifier, temp));
-					//get_angles(icp_transformation_matrix);
-
-					//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
-					std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.modelKeypoints_, KeypointDetector.sceneKeypoints_);
-					float distance_threshold = shotRadius_ * modelResolution / 2;
-					pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
-					print_results(true_positives, KeypointDetector);
-
-					//Enable if evaluation according to Guo et al.
-					#if 0
-					//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
-					pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
-					//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
-					pr_filename = "../../../../PR/Guo/" + model_name + "_to_" + scene_name + ".csv";
-					std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
-					filehandler.writeToFile(results, pr_filename);
-					print_results(true_positives, KeypointDetector);
-					#endif
-
-					//Enable if evaluation according to Buch et al.
-					#if 1
-					accumulate_keypoints(KeypointDetector);
-					std::string results = concatenate_distances(euclidean_distance);
-					stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
-					std::string statistics = create_writable_stats(stats);
-					FileHandler.writeToFile(results, pr_filename);
-					//FileHandler.writeToFile(statistics, stats_filename);
-					#endif
-					std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-					FileHandler.writeToFile(NOF_keypoints, pr_filename);
-					NOF_keypoints = "";
-					accumulated_keypoints = 0;
-					//corr.clear();
-				}
-			}
-		}
-	}
-	#endif
-	
 	//Enable if the visualization module should be used
-	#if 0
+#if 1
+	//Enable if manual transformation matrix construction is desired
+#if 0
 
-					Eigen::Matrix3f	temp, Rx, Ry, Rz;
-					Eigen::Matrix4f T;
-					Eigen::Vector4f vec;
-					vec << 0, 0, 0, 1;
+				Eigen::Matrix3f	temp, Rx, Ry, Rz;
+				Eigen::Matrix4f T;
+				Eigen::Vector4f vec;
+				vec << 0, 0, 0, 1;
 
-					float psi = 0;
-					float theta = 0;
-					float phi =0.262;
+				float psi = 0;
+				float theta = 0;
+				float phi = 0.262;
 
-					Rz << cos(psi), -sin(psi), 0,
-						sin(psi), cos(psi), 0,
-						0, 0, 1;
-					Ry << cos(theta), 0, sin(theta),
-						0, 1, 0,
-						-sin(theta), 0, cos(theta);
-					Rx << 1, 0, 0,
-						0, cos(phi), -sin(phi),
-						0, sin(phi), cos(phi);
+				Rz << cos(psi), -sin(psi), 0,
+					sin(psi), cos(psi), 0,
+					0, 0, 1;
+				Ry << cos(theta), 0, sin(theta),
+					0, 1, 0,
+					-sin(theta), 0, cos(theta);
+				Rx << 1, 0, 0,
+					0, cos(phi), -sin(phi),
+					0, sin(phi), cos(phi);
 
-					temp = Rz * Ry * Rx;
-					for (int i = 0; i < temp.rows(); ++i) {
-						for (int j = 0; j < temp.cols(); ++j) {
-							T(i, j) = temp(i, j);
-						}
+				temp = Rz * Ry * Rx;
+				for (int i = 0; i < temp.rows(); ++i) {
+					for (int j = 0; j < temp.cols(); ++j) {
+						T(i, j) = temp(i, j);
 					}
-					for (int i = 0; i < temp.rows(); ++i) {
-						T(i, 3) = 0;
-						T(3, i) = 0;
-					}
-					T(3, 3) = 1;
-					std::cout << "temp: " << temp << endl;
-					std::cout << "T: " << T << endl;
-
-					pcl::transformPointCloud(model, model, T);
-
-					boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-					viewer->setBackgroundColor(0, 0, 0);
-					//viewer->addCoordinateSystem (0.1);
-					viewer->initCameraParameters();
-
-					//Move model so that it is separated from the scene to see correspondences
-					Eigen::Matrix4f t;
-					t << 1, 0, 0, modelResolution * 100,
-						0, 1, 0, 0,
-						0, 0, 1, 0,
-						0, 0, 0, 1;
-
-					pcl::transformPointCloud(KeypointDetector.modelKeypoints_, KeypointDetector.modelKeypoints_, t);
-					pcl::transformPointCloud(model, model, t);
-
-					//Add model keypoints to visualizer
-					pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(KeypointDetector.modelKeypoints_.makeShared(), 200, 0, 0);
-					viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), red, "sample cloud1");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
-					
-					//add scene keypoints to visualizer
-					pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(KeypointDetector.sceneKeypoints_.makeShared(), 0, 0, 150);
-					viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.sceneKeypoints_.makeShared(), blue, "sample cloud2");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
-					//add lines between the correspondences
-					viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.modelKeypoints_.makeShared(), KeypointDetector.sceneKeypoints_.makeShared(), corr, "correspondences");
-
-					//add model points to visualizer
-					viewer->addPointCloud<pcl::PointXYZ>(model.makeShared(), "sample cloud3");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "sample cloud3");
-
-					//add scene points to visualizer
-					//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> white_scene(scene.makeShared(), 155, 155, 155);
-					viewer->addPointCloud<pcl::PointXYZ>(scene.makeShared(), "sample cloud4");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud4");
-					viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud4");
-
-					////add normals
-					//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(model.makeShared(), NormalEstimator.modelNormals_.makeShared(), 15, 0.005, "model_normals");
-					//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(scene.makeShared(), NormalEstimator.sceneNormals_.makeShared(), 15, 0.005, "scene_normals");
-					//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "model_normals");
-					//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "scene_normals");
-
-					//// fixed camera params for normal pictures
-					//viewer->setCameraPosition(-0.0100684, -0.00191237, 0.0384372, -0.0153327, -0.0521215, 0.00973529, 0.12715, -0.502269, 0.855312);
-					//viewer->setCameraFieldOfView(0.523598775);
-					//viewer->setCameraClipDistances(0.000134497, 0.134497);
-					//viewer->setPosition(0, 0);
-					//viewer->setSize(1024, 756);
-
-					while (!viewer->wasStopped())
-					{
-						viewer->spinOnce(100);
-						std::this_thread::sleep_for(100ms);
-					}
-
-					corr.clear();
-
 				}
-				//string angle_stats = create_writable_angles(angles);
-				//FileHandler.writeToFile(angle_stats, "../../../../stats/angles/angles.csv");
+				for (int i = 0; i < temp.rows(); ++i) {
+					T(i, 3) = 0;
+					T(3, i) = 0;
+				}
+				T(3, 3) = 1;
+				std::cout << "temp: " << temp << endl;
+				std::cout << "T: " << T << endl;
+
+				pcl::transformPointCloud(query, query, T);
+#endif
+				boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+				viewer->setBackgroundColor(0, 0, 0);
+				//viewer->addCoordinateSystem (0.1);
+				viewer->initCameraParameters();
+
+				//Move query so that it is separated from the target to see correspondences
+				Eigen::Matrix4f t;
+				t << 1, 0, 0, queryResolution * 200,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1;
+
+				pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, t);
+				pcl::transformPointCloud(query, query, t);
+
+				//Add query keypoints to visualizer
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(KeypointDetector.queryKeypoints_.makeShared(), 200, 0, 0);
+				viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), red, "sample cloud1");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
+
+				//add target keypoints to visualizer
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(KeypointDetector.targetKeypoints_.makeShared(), 0, 0, 150);
+				viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.targetKeypoints_.makeShared(), blue, "sample cloud2");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
+				//add lines between the correspondences
+				viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), KeypointDetector.targetKeypoints_.makeShared(), corr, "correspondences");
+
+				//add query points to visualizer
+				viewer->addPointCloud<pcl::PointXYZ>(query.makeShared(), "sample cloud3");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "sample cloud3");
+
+				//add target points to visualizer
+				viewer->addPointCloud<pcl::PointXYZ>(target.makeShared(), "sample cloud4");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud4");
+				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud4");
+
+				////add normals
+				//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(query.makeShared(), NormalEstimator.queryNormals_.makeShared(), 15, 0.005, "query_normals");
+				//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(target.makeShared(), NormalEstimator.targetNormals_.makeShared(), 15, 0.005, "target_normals");
+				//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "query_normals");
+				//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "target_normals");
+
+				//// fixed camera params for normal pictures
+				//viewer->setCameraPosition(-0.0100684, -0.00191237, 0.0384372, -0.0153327, -0.0521215, 0.00973529, 0.12715, -0.502269, 0.855312);
+				//viewer->setCameraFieldOfView(0.523598775);
+				//viewer->setCameraClipDistances(0.000134497, 0.134497);
+				//viewer->setPosition(0, 0);
+				//viewer->setSize(1024, 756);
+
+				while (!viewer->wasStopped())
+				{
+					viewer->spinOnce(100);
+					std::this_thread::sleep_for(100ms);
+				}
+
+				corr.clear();
+
 			}
+			//string angle_stats = create_writable_angles(angles);
+			//FileHandler.writeToFile(angle_stats, "../../../../stats/angles/angles.csv");
 		}
 	}
-	#endif
+
+#endif
 
 	return 0;
 }
