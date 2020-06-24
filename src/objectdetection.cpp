@@ -527,11 +527,11 @@ int main(int argc, char* argv[])
 	Params used during cloudgen & objectdetection
 	*/
 	string object = "whitebottle";
-	string dataset = "l2score_eval";
+	string dataset = "l2score_eval_v2";
 	string preprocessor_mode = "3d_filtered";
-	string transformation = "clustered";
+	string transformation = "";
 	vector<float> keypointdetector_threshold = { 0.7f };
-	vector<int> keypointdetector_nof_neighbors = { 3, 5 };
+	vector<int> keypointdetector_nof_neighbors = { 5 };
 	vector<tuple<string, vector<double>>> angles;
 	float modelResolution, sceneResolution;
 	/*
@@ -543,19 +543,18 @@ int main(int argc, char* argv[])
 	\_|   \__,_| \__||_| |_||___/
 	Paths used during cloudgen
 	*/
-	string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/"+object;
+	string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
 	string depth_extension = ".txt";
-	string cloud_directory = "../../../../clouds/" + dataset + "/"+object;
+	string cloud_directory = "../../../../clouds/" + dataset + "/" + object;
 	vector<fs::path> depth_names;
 	vector<fs::path> cloud_names;
 	//Paths used during objectdetection
-	string query_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + "/experimental/query_models";
-	string scene_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + "/experimental/SOR_50";
+	string query_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + transformation;
+	string scene_directory = "../../../../clouds/" + dataset + "/" + object + "/" + preprocessor_mode + transformation;
 	string pr_root = "../../../../PR/Buch";
 	string stats_root = "../../../../stats";
 	vector<fs::path> query_names;
 	vector<fs::path> scene_names;
-
 	/*
 	 _____  _                    _
 	/  __ \| |                  | |
@@ -677,9 +676,9 @@ int main(int argc, char* argv[])
 	std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-	CloudCreator.show_cloud(background_cloud);
-	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 10);
-	CloudCreator.show_cloud(filtered_background);
+	//CloudCreator.show_cloud(background_cloud);
+	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 5);
+	//CloudCreator.show_cloud(filtered_background);
 	
 	//Pop first element (background without model)
 	depth_names.erase(depth_names.begin());
@@ -691,23 +690,22 @@ int main(int argc, char* argv[])
 		creation_stats.push_back(time_meas("time_textToDistance"));
 		time_meas();
 		model_cloud = CloudCreator.distance_array_to_cloud(model_distance_array, 6.0f, 0.015f, 0.015f);
-		CloudCreator.show_cloud(model_cloud);
+		//CloudCreator.show_cloud(model_cloud);
 		creation_stats.push_back(time_meas("time_distanceToCloud"));
 		time_meas();
-		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 10);
-		CloudCreator.show_cloud(filtered_model);
+		filtered_model = CloudCreator.median_filter_cloud(model_cloud, 5);
+		//CloudCreator.show_cloud(filtered_model);
 		creation_stats.push_back(time_meas("time_medianfilter"));
 		time_meas();
 		final_cloud = CloudCreator.remove_background(filtered_model, filtered_background, 0.005f);
-		CloudCreator.show_cloud(final_cloud);
+		//CloudCreator.show_cloud(final_cloud);
 		creation_stats.push_back(time_meas("time_backgroundRemoval"));
-		//roi_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.1f);
-		temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),15);
+		//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
 		string filename = cloud_directory + "/" + depth_names[i].string();
 		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
-		string statistics = create_writable_stats(creation_stats);
-		string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
-		pcl::io::savePLYFileASCII(substr, temp_cloud);
+		//string statistics = create_writable_stats(creation_stats);
+		//string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
+		pcl::io::savePLYFileASCII(substr, final_cloud);
 		//FileHandler.writeToFile(statistics, stats_filename);
 	}
 	#endif
@@ -917,7 +915,7 @@ int main(int argc, char* argv[])
 	#endif
 		
 	//Enable for automated detection process
-	#if 0
+	#if 1
 	get_all_file_names(query_directory, ".ply", query_names);
 	get_all_file_names(scene_directory, ".ply", scene_names);
 
@@ -949,7 +947,7 @@ int main(int argc, char* argv[])
 
 					string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 						+ "/iss" + std::to_string(keypointdetector_nof_neighbors[neighbor])
-						+"_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
+						+ "_th" + std::to_string(keypointdetector_threshold[threshold]).substr(0, 3)
 						+ "/" + transformation
 						+ "/" + model_identifier + "_to_" + scene_identifier + ".csv";
 					string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
@@ -1016,7 +1014,7 @@ int main(int argc, char* argv[])
 					processing_times.push_back(time_meas("ICP"));
 
 					vector<double> temp = get_angles(icp_transformation_matrix);
-					angles.push_back(make_tuple(model_identifier + "_to_" + scene_identifier,temp));
+					angles.push_back(make_tuple(model_identifier + "_to_" + scene_identifier, temp));
 					//get_angles(icp_transformation_matrix);
 
 					//Calculate euclidean distance of a model keypoint to its matched scene keypoint: sqrt(delta_x^2 + delta_y^2 + delta_z^2)
@@ -1026,33 +1024,34 @@ int main(int argc, char* argv[])
 					print_results(true_positives, KeypointDetector);
 
 					//Enable if evaluation according to Guo et al.
-#if 0
-			//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
+					#if 0
+					//A match is considered TP if the euclidean distance of a model keypoint to its matched scene keypoint is less than half the supportradius
 					pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
-
 					//Store the NNDR and the euclidean distance for the evaluation according to Guo et al.
 					pr_filename = "../../../../PR/Guo/" + model_name + "_to_" + scene_name + ".csv";
 					std::string results = concatenate_results(KeypointDetector, euclidean_distance, distance_threshold);
 					filehandler.writeToFile(results, pr_filename);
 					print_results(true_positives, KeypointDetector);
+					#endif
 
-#endif
 					//Enable if evaluation according to Buch et al.
-	//#if 1
-	//				accumulate_keypoints(KeypointDetector);
-	//				std::string results = concatenate_distances(euclidean_distance);
-	//				stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
-	//				std::string statistics = create_writable_stats(stats);
-	//				FileHandler.writeToFile(results, pr_filename);
-	//				//FileHandler.writeToFile(statistics, stats_filename);
-	//
-	//#endif
-	//				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-	//				FileHandler.writeToFile(NOF_keypoints, pr_filename);
-	//				NOF_keypoints = "";
-	//				accumulated_keypoints = 0;
-	//				//corr.clear();
-
+					#if 1
+					accumulate_keypoints(KeypointDetector);
+					std::string results = concatenate_distances(euclidean_distance);
+					stats = assemble_stats(processing_times, model, scene, modelResolution, sceneResolution, KeypointDetector);
+					std::string statistics = create_writable_stats(stats);
+					FileHandler.writeToFile(results, pr_filename);
+					//FileHandler.writeToFile(statistics, stats_filename);
+					#endif
+					std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+					FileHandler.writeToFile(NOF_keypoints, pr_filename);
+					NOF_keypoints = "";
+					accumulated_keypoints = 0;
+					//corr.clear();
+				}
+			}
+		}
+	}
 	#endif
 	
 	//Enable if the visualization module should be used
