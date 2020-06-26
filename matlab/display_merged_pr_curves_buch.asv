@@ -23,7 +23,7 @@ for folder = 1:length(folder_list)
     %load all matches into one array
     for file = 1:length(files)
         filename = strcat(files(file).folder, '\', files(file).name)
-        %Ignore files which names don't contain defined pattern (e.g. specific rotation)
+        %Ignore files not containing specific pattern in filename (e.g. specific rotation)
         k = strfind(filename,'_to_');
         if(isempty(k))
             continue

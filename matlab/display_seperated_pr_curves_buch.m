@@ -1,6 +1,6 @@
 %The following script generates the PR-Curve based on the proposition of
 %buch et al. All matches of a dataset (containing several models and scenes)
-%are plotted in one graph as individual curves DIsplay different files from
+%are plotted in one graph as individual curves. DIsplay different files from
 %folder seperately
 clear all;
 rootdir = '..\PR\Buch\09_04_20\gipfeli\3d_filtered\B_SHOT\iss5_th0.9\0_tran';
