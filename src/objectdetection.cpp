@@ -526,7 +526,7 @@ int main(int argc, char* argv[])
 	\_|   \__,_||_|   \__,_||_| |_| |_||___/
 	Params used during cloudgen & objectdetection
 	*/
-	string object = "mutter";
+	string object = "buerli";
 	string dataset = "threshold_eval";
 	string preprocessor_mode = "3d_filtered";
 	vector<float> keypointdetector_threshold = { 0.7f };
@@ -1025,10 +1025,10 @@ int main(int argc, char* argv[])
 #if 1
 				accumulate_keypoints(KeypointDetector);
 				std::string results = concatenate_distances(euclidean_distance);
-				FileHandler.writeToFile(results, pr_filename);
+				//FileHandler.writeToFile(results, pr_filename);
 #endif
 				std::string NOF_keypoints = std::to_string(accumulated_keypoints) + "," + std::to_string(distance_threshold) + "\n";
-				FileHandler.writeToFile(NOF_keypoints, pr_filename);
+				//FileHandler.writeToFile(NOF_keypoints, pr_filename);
 				NOF_keypoints = "";
 				accumulated_keypoints = 0;
 				//corr.clear();
