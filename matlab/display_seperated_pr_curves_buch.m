@@ -3,17 +3,18 @@
 %are plotted in one graph as individual curves. DIsplay different files from
 %folder seperately
 clear all;
-rootdir = '..\PR\Buch\09_04_20\gipfeli\3d_filtered\B_SHOT\iss5_th0.9\0_tran';
-folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
+rootdir = '..\PR\Buch\threshold_eval\';
+folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''SHOT'')', true);
 
 NOF_colors = 8;
 marker_index = 1;
 stepsize = 1;
 x_axis = 1;
-y_axis = 0.1;
+y_axis = 1;
 PR_graph_path = strcat(rootdir,'\','PR_seperated.png');
-for folder = 1:1
-    files = dir(strcat(rootdir,'\', folder_list(folder).name, '\*.csv'));
+for folder = 1:length(folder_list)
+    files = dir(strcat(folder_list(folder).name, '\*.csv'));
+    thresholds = [];
     for i0=1:length(files)
         filename = strcat(files(i0).folder, '\', files(i0).name);
         iamge_name = strcat(files(i0).folder, '\', files(i0).name, '.png');
@@ -52,6 +53,13 @@ for folder = 1:1
                 recall = [recall tp/NOF_keypoints];
             end
         end
+        %Calculate Object Detection Threshold #KP
+        distance = [];
+        for i=1:length(recall)
+            distance(i) = sqrt((1-recall(i))^2 + (1-precision(i))^2);
+        end
+        [min_dist,idx] = min(distance);
+        thresholds = [thresholds, idx];
         legend_name = strcat(files(i0).name);
         %Change marker if all line colors were already used in graph
         if(mod(i0, NOF_colors) == 0)
@@ -79,6 +87,7 @@ for folder = 1:1
         xlabel('1-Precision','fontsize',15);ylabel('Recall','fontsize',15);
         set(gcf, 'Position',  [100, 100, 800, 700])
     end
+    threshold = median(thresholds);
 end
 legend('show');
-saveas(gcf,PR_graph_path)
+%saveas(gcf,PR_graph_path)

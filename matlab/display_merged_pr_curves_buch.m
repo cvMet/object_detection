@@ -5,8 +5,6 @@
 %PR-curve. Merge several files from one folder
 clear all;
 rootdir = '..\PR\Buch\threshold_eval\';
-folder_list = rdir([rootdir, '\**\*.']);
-%folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''iss\d'')', true);
 folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''SHOT'')', true);
 marker_index = 1;
 NOF_colors = 7;
@@ -52,16 +50,9 @@ for folder = 1:length(folder_list)
         NNDR = [NNDR; data(:,1)];
         euclidean_distance = [euclidean_distance; data(:,2)];
     end
-    %Sort keypoints by NNDR in ascending order
     [sorted_keypoints, sort_idx] = sort(NNDR, 'ascend');
     sorted_euclidean_distance = euclidean_distance(sort_idx);
     %Calculate TP&FP -> derive precision and recall
-    %     keypoints_09 = numel(NNDR(NNDR(:,1)<0.9,:));
-    %     keypoints_092 = numel(NNDR(NNDR(:,1)<0.925,:));
-    %     keypoints_095 = numel(NNDR(NNDR(:,1)<0.95,:));
-    %     keypoints_0975 = numel(NNDR(NNDR(:,1)<0.975,:));
-    %     keypoints_1 = numel(NNDR);
-    %     collection = [keypoints_09,keypoints_092, keypoints_095,keypoints_0975 keypoints_1];
     precision = [];
     recall = [];
     tp = 0;
@@ -75,7 +66,12 @@ for folder = 1:length(folder_list)
         precision = [precision tp/(tp+fp)];
         recall = [recall tp/NOF_keypoints];
     end
-    
+    %Calculate Object Detection Threshold #KP
+    for i=1:length(recall)
+        distance(i) = sqrt((1-recall(i))^2 + (1-precision(i))^2);
+    end
+    [min_dist,idx] = min(distance);
+    threshold = floor(idx/file);
     name = strcat(folder_list(folder).name);
     legend_name = name(27:end);
     %Visualization
