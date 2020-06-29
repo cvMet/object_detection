@@ -30,6 +30,10 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include <random>
 #include "../include/menu/base_menu.h"
 #include "../include/menu/main_menu.h"
+#include "../include/menu/cloudcreation_menu.h"
+#include "../include/menu/detection_menu.h"
+#include "../include/menu/filter_menu.h"
+#include "../include/menu/merge_menu.h"
 #include "objectdetection.h"
 
 //Namespaces
@@ -53,11 +57,14 @@ ______
 \_|   \__,_||_|   \__,_||_| |_| |_||___/
 Params used during cloudgen & objectdetection
 */
+vector<tuple<string, bool>> execution_params;
+vector<float> keypointdetector_threshold = { 0.7f };
+vector<int> keypointdetector_nof_neighbors = { 5 };
+
 string object = "buerli";
 string dataset = "threshold_eval";
 string preprocessor_mode = "3d_filtered";
-vector<float> keypointdetector_threshold = { 0.7f };
-vector<int> keypointdetector_nof_neighbors = { 5 };
+
 vector<tuple<string, vector<double>>> angles;
 float queryResolution, targetResolution;
 
@@ -509,6 +516,14 @@ void set_object(string object_name) {
 	object = object_name;
 }
 
+void set_execution_param(string id) {
+	for (int i = 0; i < execution_params.size(); ++i) {
+		if (id.compare(get<0>(execution_params[i])) == 0) {
+			get<1>(execution_params[i]) = true;
+		}
+	}
+}
+
 string get_input() {
 	string input;
 	cin >> input;
@@ -558,17 +573,35 @@ float get_median(std::vector<float> values) {
 
 int main(int argc, char* argv[])
 {
+	execution_params.push_back(make_tuple("cloudcreation",false));
+	execution_params.push_back(make_tuple("merging", false));
+	execution_params.push_back(make_tuple("detection", false));
+
+	BaseMenu* CurrentMenu = new MainMenu;
+	bool quit = false;
+	bool execute = false;
+	while (!quit && !execute)
+	{
+		CurrentMenu->clearScreen();
+		CurrentMenu->printText();
+
+		char choice = 'z';
+		cin >> choice;
+
+		BaseMenu* NewMenuPointer = CurrentMenu->getNextMenu(toupper(choice), quit, execute);
+
+		if (NewMenuPointer)
+		{
+			delete CurrentMenu;
+			CurrentMenu = NewMenuPointer;
+		}
+	}
+
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
 
 	/*
-	______       _    _
-	| ___ \     | |  | |
-	| |_/ /__ _ | |_ | |__   ___
-	|  __// _` || __|| '_ \ / __|
-	| |  | (_| || |_ | | | |\__ \
-	\_|   \__,_| \__||_| |_||___/
 	Paths used during cloudgen
 	*/
 	string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
@@ -583,13 +616,8 @@ int main(int argc, char* argv[])
 	string stats_root = "../../../../stats";
 	vector<fs::path> query_names;
 	vector<fs::path> target_names;
+	
 	/*
-	 _____  _                    _
-	/  __ \| |                  | |
-	| /  \/| |  ___   _   _   __| | ___
-	| |    | | / _ \ | | | | / _` |/ __|
-	| \__/\| || (_) || |_| || (_| |\__ \
-	 \____/|_| \___/  \__,_| \__,_||___/
 	 Clouds used during cloud generation
 	*/
 	pcl::PointCloud<pcl::PointXYZ> query_cloud;
@@ -602,25 +630,6 @@ int main(int argc, char* argv[])
 	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> query;
 	pcl::PointCloud<PointType> target;
-
-	BaseMenu* CurrentMenu = new MainMenu;
-	bool isQuitOptionSelected = false;
-	while (!isQuitOptionSelected)
-	{
-		CurrentMenu->clearScreen();
-		CurrentMenu->printText();
-
-		char choice = 'z';
-		cin >> choice;
-
-		BaseMenu* NewMenuPointer = CurrentMenu->getNextMenu(toupper(choice), isQuitOptionSelected);
-
-		if (NewMenuPointer)
-		{	
-			delete CurrentMenu;
-			CurrentMenu = NewMenuPointer;
-		}
-	}
 
 
 	//Unordered filtering playground
@@ -717,252 +726,252 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-	//Enable if clouds need to be generated first
-#if 0
-	get_all_file_names(depth_directory, depth_extension, depth_names);
-	std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
-	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
-	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-	//CloudCreator.show_cloud(background_cloud);
-	filtered_background = CloudCreator.median_filter_cloud(background_cloud, 5);
-	//CloudCreator.show_cloud(filtered_background);
+	//Element 0 of exec params = CLOUDCREATION
+	if (std::get<1>(execution_params[0])) {
+		get_all_file_names(depth_directory, depth_extension, depth_names);
+		std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
+		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
+		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
+		//CloudCreator.show_cloud(background_cloud);
+		filtered_background = CloudCreator.median_filter_cloud(background_cloud, 5);
+		//CloudCreator.show_cloud(filtered_background);
 
-	//Pop first element (background without query)
-	depth_names.erase(depth_names.begin());
-	for (int i = 0; i < depth_names.size(); ++i) {
-		vector<tuple<string, float>> creation_stats;
-		std::string query_depth_filename = depth_directory + "/" + depth_names[i].string();
-		time_meas();
-		std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
-		creation_stats.push_back(time_meas("time_textToDistance"));
-		time_meas();
-		query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
-		//CloudCreator.show_cloud(query_cloud);
-		creation_stats.push_back(time_meas("time_distanceToCloud"));
-		time_meas();
-		filtered_query = CloudCreator.median_filter_cloud(query_cloud, 5);
-		//CloudCreator.show_cloud(filtered_query);
-		creation_stats.push_back(time_meas("time_medianfilter"));
-		time_meas();
-		final_cloud = CloudCreator.remove_background(filtered_query, filtered_background, 0.005f);
-		//CloudCreator.show_cloud(final_cloud);
-		creation_stats.push_back(time_meas("time_backgroundRemoval"));
-		//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
-		string filename = cloud_directory + "/" + depth_names[i].string();
-		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
-		//string statistics = create_writable_stats(creation_stats);
-		//string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
-		pcl::io::savePLYFileASCII(substr, final_cloud);
-		//FileHandler.writeToFile(statistics, stats_filename);
+		//Pop first element (background without query)
+		depth_names.erase(depth_names.begin());
+		for (int i = 0; i < depth_names.size(); ++i) {
+			vector<tuple<string, float>> creation_stats;
+			std::string query_depth_filename = depth_directory + "/" + depth_names[i].string();
+			time_meas();
+			std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
+			creation_stats.push_back(time_meas("time_textToDistance"));
+			time_meas();
+			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
+			//CloudCreator.show_cloud(query_cloud);
+			creation_stats.push_back(time_meas("time_distanceToCloud"));
+			time_meas();
+			filtered_query = CloudCreator.median_filter_cloud(query_cloud, 5);
+			//CloudCreator.show_cloud(filtered_query);
+			creation_stats.push_back(time_meas("time_medianfilter"));
+			time_meas();
+			final_cloud = CloudCreator.remove_background(filtered_query, filtered_background, 0.005f);
+			//CloudCreator.show_cloud(final_cloud);
+			creation_stats.push_back(time_meas("time_backgroundRemoval"));
+			//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
+			string filename = cloud_directory + "/" + depth_names[i].string();
+			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+			//string statistics = create_writable_stats(creation_stats);
+			//string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
+			pcl::io::savePLYFileASCII(substr, final_cloud);
+			//FileHandler.writeToFile(statistics, stats_filename);
+		}
 	}
-#endif
 
-	//Enable if several clouds should get merged into one cloud
-#if 0
-	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
-	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
-	std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
-	pcl::PointCloud<pcl::PointXYZ>::Ptr origin_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr temp(new pcl::PointCloud<pcl::PointXYZ>);
-	//Enable if you want to create unfiltered clouds that stay organized
+	//Element 1 of exec params = CLOUD MERGING
+	if (std::get<1>(execution_params[1])) {
+		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
+		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
+		std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
+		pcl::PointCloud<pcl::PointXYZ>::Ptr origin_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr temp(new pcl::PointCloud<pcl::PointXYZ>);
+		//Enable if you want to create unfiltered clouds that stay organized
 #if 0
 	//Paths used during cloudgen
-	query_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/query";
-	background_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/background";
-	depth_extension = ".txt";
-	cloud_directory = "../../../../clouds/mastercloud/unfiltered";
+		query_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/query";
+		background_depth_directory = "../../../../datasets/20_03_20/raw_depth/WhiteBottle/0_tran/background";
+		depth_extension = ".txt";
+		cloud_directory = "../../../../clouds/mastercloud/unfiltered";
 
-	query_depth_names.clear();
-	background_depth_names.clear();
-	get_all_file_names(query_depth_directory, depth_extension, query_depth_names);
-	get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
+		query_depth_names.clear();
+		background_depth_names.clear();
+		get_all_file_names(query_depth_directory, depth_extension, query_depth_names);
+		get_all_file_names(background_depth_directory, depth_extension, background_depth_names);
 
-	std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
-	std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
-	background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
+		std::string bkgr_depth_filename = background_depth_directory + "/" + background_depth_names[0].string();
+		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
+		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 
-	for (int i = 0; i < query_depth_names.size(); ++i) {
-		std::string query_depth_filename = query_depth_directory + "/" + query_depth_names[i].string();
-		std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
-		query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
-		final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.0055f);
-		CloudCreator.show_cloud(query_cloud);
-		CloudCreator.show_cloud(background_cloud);
-		CloudCreator.show_cloud(final_cloud);
-		string filename = cloud_directory + "/" + background_depth_names[i].string();
-		string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
-		pcl::io::savePLYFileASCII(substr, final_cloud);
-	}
+		for (int i = 0; i < query_depth_names.size(); ++i) {
+			std::string query_depth_filename = query_depth_directory + "/" + query_depth_names[i].string();
+			std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
+			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
+			final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.0055f);
+			CloudCreator.show_cloud(query_cloud);
+			CloudCreator.show_cloud(background_cloud);
+			CloudCreator.show_cloud(final_cloud);
+			string filename = cloud_directory + "/" + background_depth_names[i].string();
+			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+			pcl::io::savePLYFileASCII(substr, final_cloud);
+		}
 #endif
 
-	//Load origin cloud
-	string origin_cloud_path = "../../../../clouds/20_03_20/WB/0_tran/unfiltered/WhiteBottle_0_0_0_0.ply";
-	cloud_directory = "../../../../clouds/mastercloud";
-	get_all_file_names(cloud_directory, ".ply", cloud_names);
-	if (pcl::io::loadPLYFile(origin_cloud_path, *origin_cloud) == -1)
-	{
-		std::cout << "Error loading initial master cloud." << std::endl;
-	}
-	CloudCreator.remove_outliers(origin_cloud, 15);
-	*origin_cloud = euclidean_cluster_extraction(*origin_cloud)[0];
-	pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/origincluster.ply", *origin_cloud);
-	float origin_res = static_cast<float> (compute_cloud_resolution(origin_cloud));
-	//Load all permutation clouds into vector
-	for (int cloud = 0; cloud < cloud_names.size(); ++cloud) {
-		std::vector<pcl::PointCloud<PointXYZ>> clusters;
-		pcl::PointCloud<pcl::PointXYZ>::Ptr permutation_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-		string cloud_filename = cloud_directory + "/" + cloud_names[cloud].string();
-		if (pcl::io::loadPLYFile(cloud_filename, *permutation_cloud) == -1)
+		//Load origin cloud
+		string origin_cloud_path = "../../../../clouds/20_03_20/WB/0_tran/unfiltered/WhiteBottle_0_0_0_0.ply";
+		cloud_directory = "../../../../clouds/mastercloud";
+		get_all_file_names(cloud_directory, ".ply", cloud_names);
+		if (pcl::io::loadPLYFile(origin_cloud_path, *origin_cloud) == -1)
 		{
-			std::cout << "Error loading permutation cloud." << std::endl;
+			std::cout << "Error loading initial master cloud." << std::endl;
 		}
-		//clouds.push_back(permutation_cloud);
-		//CloudCreator.remove_outliers(permutation_cloud, 15);
-		//Euclidean Clustering
-		clusters.push_back(euclidean_cluster_extraction(*permutation_cloud)[0]);
+		CloudCreator.remove_outliers(origin_cloud, 15);
+		*origin_cloud = euclidean_cluster_extraction(*origin_cloud)[0];
+		pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/origincluster.ply", *origin_cloud);
+		float origin_res = static_cast<float> (compute_cloud_resolution(origin_cloud));
+		//Load all permutation clouds into vector
+		for (int cloud = 0; cloud < cloud_names.size(); ++cloud) {
+			std::vector<pcl::PointCloud<PointXYZ>> clusters;
+			pcl::PointCloud<pcl::PointXYZ>::Ptr permutation_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+			string cloud_filename = cloud_directory + "/" + cloud_names[cloud].string();
+			if (pcl::io::loadPLYFile(cloud_filename, *permutation_cloud) == -1)
+			{
+				std::cout << "Error loading permutation cloud." << std::endl;
+			}
+			//clouds.push_back(permutation_cloud);
+			//CloudCreator.remove_outliers(permutation_cloud, 15);
+			//Euclidean Clustering
+			clusters.push_back(euclidean_cluster_extraction(*permutation_cloud)[0]);
 
-		clouds.push_back(clusters[0].makeShared());
-		pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/cluster_permutationCloud" + to_string(cloud) + ".ply", *clouds[cloud]);
-	}
+			clouds.push_back(clusters[0].makeShared());
+			pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/cluster_permutationCloud" + to_string(cloud) + ".ply", *clouds[cloud]);
+		}
 
-	for (int cloud = 0; cloud < clouds.size(); ++cloud) {
-		Normals NormalEstimator;
-		KeypointDetector KeypointDetector;
-		Descriptor Describer;
-		Matching Matcher;
-		pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-		float permutation_res = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
+		for (int cloud = 0; cloud < clouds.size(); ++cloud) {
+			Normals NormalEstimator;
+			KeypointDetector KeypointDetector;
+			Descriptor Describer;
+			Matching Matcher;
+			pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+			float permutation_res = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
 
-		//Estimate Normals
-		NormalEstimator.query = *origin_cloud;
-		NormalEstimator.target = *clouds[cloud];
-		NormalEstimator.calculateNormals(5 * origin_res, 5 * permutation_res);
-		NormalEstimator.removeNaNNormals();
-		*origin_cloud = NormalEstimator.query;
-		*clouds[cloud] = NormalEstimator.target;
+			//Estimate Normals
+			NormalEstimator.query = *origin_cloud;
+			NormalEstimator.target = *clouds[cloud];
+			NormalEstimator.calculateNormals(5 * origin_res, 5 * permutation_res);
+			NormalEstimator.removeNaNNormals();
+			*origin_cloud = NormalEstimator.query;
+			*clouds[cloud] = NormalEstimator.target;
 
-		//Detect keypoints
-		time_meas();
-		KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, *origin_cloud, NormalEstimator.queryNormals_, origin_res, 0.9f, 5);
-		KeypointDetector.calculateIssKeypoints(KeypointDetector.targetKeypoints_, *clouds[cloud], NormalEstimator.targetNormals_, permutation_res, 0.9f, 5);
+			//Detect keypoints
+			time_meas();
+			KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, *origin_cloud, NormalEstimator.queryNormals_, origin_res, 0.9f, 5);
+			KeypointDetector.calculateIssKeypoints(KeypointDetector.targetKeypoints_, *clouds[cloud], NormalEstimator.targetNormals_, permutation_res, 0.9f, 5);
 
-		//Calculate descriptor for each keypoint
-		time_meas();
-		Describer.NormalEstimator = NormalEstimator;
-		Describer.KeypointDetector = KeypointDetector;
-		Describer.query_ = *origin_cloud;
-		Describer.target_ = *clouds[cloud];
-		Describer.calculateDescriptor(30 * origin_res, 30 * permutation_res);
+			//Calculate descriptor for each keypoint
+			time_meas();
+			Describer.NormalEstimator = NormalEstimator;
+			Describer.KeypointDetector = KeypointDetector;
+			Describer.query_ = *origin_cloud;
+			Describer.target_ = *clouds[cloud];
+			Describer.calculateDescriptor(30 * origin_res, 30 * permutation_res);
 
-		//Matching
-		float c_threshold = 1.0f;
-		Matcher.desc = Describer;
-		Matcher.calculateCorrespondences(c_threshold);
+			//Matching
+			float c_threshold = 1.0f;
+			Matcher.desc = Describer;
+			Matcher.calculateCorrespondences(c_threshold);
 
-		// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-		RansacRejector.setMaximumIterations(1000);
-		ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
-		Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
-		pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
-		pcl::transformPointCloud(*origin_cloud, *temp_cloud, ransac_transformation);
+			// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
+			RansacRejector.setMaximumIterations(1000);
+			ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
+			Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
+			pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
+			pcl::transformPointCloud(*origin_cloud, *temp_cloud, ransac_transformation);
 
-		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-		icp.setMaximumIterations(30);
-		icp.setRANSACOutlierRejectionThreshold(0.005);
-		icp.setTransformationEpsilon(1e-9);
-		icp.setInputSource(temp_cloud);
-		icp.setInputTarget(clouds[cloud]);
-		icp.align(*aligned_cloud);
-		Eigen::Matrix4f icp_transformation;
-		icp_transformation = icp.getFinalTransformation();
-		std::cout << icp_transformation << std::endl;
+			pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+			icp.setMaximumIterations(30);
+			icp.setRANSACOutlierRejectionThreshold(0.005);
+			icp.setTransformationEpsilon(1e-9);
+			icp.setInputSource(temp_cloud);
+			icp.setInputTarget(clouds[cloud]);
+			icp.align(*aligned_cloud);
+			Eigen::Matrix4f icp_transformation;
+			icp_transformation = icp.getFinalTransformation();
+			std::cout << icp_transformation << std::endl;
 
-		//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-		//viewer->setBackgroundColor(0, 0, 0);
-		//viewer->initCameraParameters();
-		////Add origin points to visualizer
-		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(origin_cloud, 0, 0, 200);
-		//viewer->addPointCloud<pcl::PointXYZ>(origin_cloud, blue, "sample cloud1");
-		//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
-		////add unaligned points to visualizer
-		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[cloud], 200, 0, 0);
-		//viewer->addPointCloud<pcl::PointXYZ>(clouds[cloud], red, "sample cloud2");
-		//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
-		////add points after ransac to visualizer
-		//viewer->addPointCloud<pcl::PointXYZ>(temp_cloud, "sample cloud3");
-		//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
-		//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
-		////add icp aligned points
-		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> icpc(aligned_cloud, 226, 176, 7);
-		//viewer->addPointCloud<pcl::PointXYZ>(aligned_cloud, icpc, "icp cloud");
-		//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "icp cloud");
-		//while (!viewer->wasStopped())
-		//{
-		//	viewer->spinOnce(100);
-		//	std::this_thread::sleep_for(100ms);
-		//}
+			//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+			//viewer->setBackgroundColor(0, 0, 0);
+			//viewer->initCameraParameters();
+			////Add origin points to visualizer
+			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(origin_cloud, 0, 0, 200);
+			//viewer->addPointCloud<pcl::PointXYZ>(origin_cloud, blue, "sample cloud1");
+			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
+			////add unaligned points to visualizer
+			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[cloud], 200, 0, 0);
+			//viewer->addPointCloud<pcl::PointXYZ>(clouds[cloud], red, "sample cloud2");
+			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
+			////add points after ransac to visualizer
+			//viewer->addPointCloud<pcl::PointXYZ>(temp_cloud, "sample cloud3");
+			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
+			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
+			////add icp aligned points
+			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> icpc(aligned_cloud, 226, 176, 7);
+			//viewer->addPointCloud<pcl::PointXYZ>(aligned_cloud, icpc, "icp cloud");
+			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "icp cloud");
+			//while (!viewer->wasStopped())
+			//{
+			//	viewer->spinOnce(100);
+			//	std::this_thread::sleep_for(100ms);
+			//}
 
-		//Add inverse of transformation matrices to corresponding vector to enable target-to-source transformation
-		transformation_matrices.push_back(make_tuple(ransac_transformation.inverse(), icp_transformation.inverse()));
+			//Add inverse of transformation matrices to corresponding vector to enable target-to-source transformation
+			transformation_matrices.push_back(make_tuple(ransac_transformation.inverse(), icp_transformation.inverse()));
 
-	}
-	for (int i = 0; i < clouds.size(); ++i) {
-		pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		}
+		for (int i = 0; i < clouds.size(); ++i) {
+			pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
+			boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+			viewer->setBackgroundColor(0, 0, 0);
+			viewer->initCameraParameters();
+			//Add origin points to visualizer
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(origin_cloud, 0, 0, 200);
+			viewer->addPointCloud<pcl::PointXYZ>(origin_cloud, blue, "sample cloud1");
+			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
+			//add unaligned points to visualizer
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[i], 200, 0, 0);
+			viewer->addPointCloud<pcl::PointXYZ>(clouds[i], red, "sample cloud2");
+			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
+
+			//transform unaligned points and add to visualizer
+			Eigen::Matrix4f rt = get<0>(transformation_matrices[i]);
+			Eigen::Matrix4f it = get<1>(transformation_matrices[i]);
+			pcl::transformPointCloud(*clouds[i], *transformed_cloud, it);
+			pcl::transformPointCloud(*transformed_cloud, *transformed_cloud, rt);
+			transformed_clouds.push_back(transformed_cloud);
+
+			viewer->addPointCloud<pcl::PointXYZ>(transformed_cloud, "sample cloud3");
+			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
+			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
+			while (!viewer->wasStopped())
+			{
+				viewer->spinOnce(100);
+				std::this_thread::sleep_for(100ms);
+			}
+		}
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr master_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		*master_cloud = *origin_cloud;
+		for (int i = 0; i < transformed_clouds.size(); ++i) {
+			*master_cloud += *transformed_clouds[i];
+		}
+		pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud.ply", *master_cloud);
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 		viewer->setBackgroundColor(0, 0, 0);
 		viewer->initCameraParameters();
 		//Add origin points to visualizer
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(origin_cloud, 0, 0, 200);
-		viewer->addPointCloud<pcl::PointXYZ>(origin_cloud, blue, "sample cloud1");
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> gold(master_cloud, 226, 176, 7);
+		viewer->addPointCloud<pcl::PointXYZ>(master_cloud, gold, "sample cloud1");
 		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
-		//add unaligned points to visualizer
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[i], 200, 0, 0);
-		viewer->addPointCloud<pcl::PointXYZ>(clouds[i], red, "sample cloud2");
-		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
-
-		//transform unaligned points and add to visualizer
-		Eigen::Matrix4f rt = get<0>(transformation_matrices[i]);
-		Eigen::Matrix4f it = get<1>(transformation_matrices[i]);
-		pcl::transformPointCloud(*clouds[i], *transformed_cloud, it);
-		pcl::transformPointCloud(*transformed_cloud, *transformed_cloud, rt);
-		transformed_clouds.push_back(transformed_cloud);
-
-		viewer->addPointCloud<pcl::PointXYZ>(transformed_cloud, "sample cloud3");
-		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
-		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
 		while (!viewer->wasStopped())
 		{
 			viewer->spinOnce(100);
 			std::this_thread::sleep_for(100ms);
 		}
+		*master_cloud = CloudCreator.remove_outliers(master_cloud, 50);
+		pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud_SOR.ply", *master_cloud);
 	}
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr master_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	*master_cloud = *origin_cloud;
-	for (int i = 0; i < transformed_clouds.size(); ++i) {
-		*master_cloud += *transformed_clouds[i];
-	}
-	pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud.ply", *master_cloud);
-	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-	viewer->setBackgroundColor(0, 0, 0);
-	viewer->initCameraParameters();
-	//Add origin points to visualizer
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> gold(master_cloud, 226, 176, 7);
-	viewer->addPointCloud<pcl::PointXYZ>(master_cloud, gold, "sample cloud1");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
-	while (!viewer->wasStopped())
-	{
-		viewer->spinOnce(100);
-		std::this_thread::sleep_for(100ms);
-	}
-	*master_cloud = CloudCreator.remove_outliers(master_cloud, 50);
-	pcl::io::savePLYFileASCII("../../../../clouds/mastercloud/mastercloud_SOR.ply", *master_cloud);
-#endif
-
-	//Enable for automated detection process
-#if 0
+	//Element 2 of exec params = OBJECT DETECTION
+	if (std::get<1>(execution_params[2])) {
 	get_all_file_names(query_directory, ".ply", query_names);
 	get_all_file_names(target_directory, ".ply", target_names);
 
@@ -1080,10 +1089,10 @@ int main(int argc, char* argv[])
 				NOF_keypoints = "";
 				accumulated_keypoints = 0;
 				//corr.clear();
-	//		}
-	//	}
-	//}
-#endif
+			}
+		}
+	}
+}
 
 	//Enable if the visualization module should be used
 #if 0

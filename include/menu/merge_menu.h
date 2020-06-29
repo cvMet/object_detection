@@ -15,7 +15,7 @@ public:
             + std::string("b - Return to MainMenu");
     }
 
-    BaseMenu* getNextMenu(char choice, bool& iIsQuitOptionSelected)
+    BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
     {
         BaseMenu* aNewMenu = 0;
 

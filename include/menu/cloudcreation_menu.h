@@ -4,8 +4,8 @@
 #include <string>
 #include "base_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/menu/filter_menu.h"
 
-class MainMenu;
 class CloudCreationMenu : public BaseMenu
 {
 public:
@@ -16,11 +16,13 @@ public:
             + "D - Set dataset\n"
             + "O - Set object\n"
             + "F - Filter options\n"
-            + "E - Execute";
+            + "E - Execute\n"
+            + "Q - Quit\n"
+            + "Selection: ";
     }
 
 
-    BaseMenu* getNextMenu(char choice, bool& iIsQuitOptionSelected)
+    BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
     {
         BaseMenu* aNewMenu = 0;
 
@@ -38,12 +40,18 @@ public:
         break;
         case 'F':
         {
-            std::cout << "not implemented yet" << std::endl;
+            aNewMenu = new FilterMenu;
         }
         break;
         case 'E':
         {
-            std::cout << "not implemented yet" << std::endl;
+            set_execution_param(std::string("cloudcreation"));
+            execute = true;
+        }
+        break;
+        case 'Q':
+        {
+            quit = true;
         }
         break;
 
@@ -54,6 +62,6 @@ public:
 
         }
 
-        return aNewMenu; // Sending it back to the main function
+        return aNewMenu;
     }
 };

@@ -3,9 +3,9 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
-#include "cloudcreation_menu.h"
-#include "merge_menu.h"
-#include "detection_menu.h"
+#include "../include/menu/cloudcreation_menu.h"
+#include "../include/menu/detection_menu.h"
+#include "../include/menu/merge_menu.h"
 
 class MainMenu : public BaseMenu
 {
@@ -21,7 +21,7 @@ public:
 			+ "Selection: ";
 	}
 
-	BaseMenu* getNextMenu(char choice, bool& iIsQuitOptionSelected) // This is us actually defining the pure virtual method above
+	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute) // This is us actually defining the pure virtual method above
 	{
 		BaseMenu* aNewMenu = 0; // We're setting up the pointer here, but makin sure it's null (0)
 
@@ -45,7 +45,7 @@ public:
 			case 'Q':
 			{
 				// Ah, they selected quit! Update the bool we got as input
-				iIsQuitOptionSelected = true;
+				quit = true;
 			}
 			break;
 			default:

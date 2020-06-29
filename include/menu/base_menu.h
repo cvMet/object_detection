@@ -9,7 +9,7 @@ class BaseMenu
 public:
     BaseMenu() { m_MenuText = "This shouldn't ever be shown!"; }
     virtual ~BaseMenu() { }
-    virtual BaseMenu *getNextMenu(char iChoice, bool& iIsQuitOptionSelected) = 0;
+    virtual BaseMenu *getNextMenu(char iChoice, bool& quit, bool& execute) = 0;
     virtual void printText()
     {
         std::cout << m_MenuText << std::endl;
