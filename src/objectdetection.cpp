@@ -28,6 +28,9 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include <pcl/surface/mls.h>
 #include <pcl/filters/shadowpoints.h>
 #include <random>
+#include "../include/menu/base_menu.h"
+#include "../include/menu/main_menu.h"
+#include "objectdetection.h"
 
 //Namespaces
 namespace fs = boost::filesystem;
@@ -41,6 +44,23 @@ typedef pcl::PointXYZI PointTypeIO;
 #ifndef isshot
 #define isshot 1	//For SHOT-Descriptor use 1 for FPFH 0
 #endif
+/*
+______
+| ___ \
+| |_/ /__ _  _ __  __ _  _ __ ___   ___
+|  __// _` || '__|/ _` || '_ ` _ \ / __|
+| |  | (_| || |  | (_| || | | | | |\__ \
+\_|   \__,_||_|   \__,_||_| |_| |_||___/
+Params used during cloudgen & objectdetection
+*/
+string object = "buerli";
+string dataset = "threshold_eval";
+string preprocessor_mode = "3d_filtered";
+vector<float> keypointdetector_threshold = { 0.7f };
+vector<int> keypointdetector_nof_neighbors = { 5 };
+vector<tuple<string, vector<double>>> angles;
+float queryResolution, targetResolution;
+
 
 clock_t start, end_time;
 pcl::Correspondences corr;
@@ -470,6 +490,31 @@ bool customRegionGrowing(const PointTypeFull& point_a, const PointTypeFull& poin
 	return (false);
 }
 
+bool get_path() {
+	string path;
+	cin >> path;
+	if (!boost::filesystem::exists(path))
+	{
+		std::cout << "Path entered was not valid!" << std::endl;
+		return false;
+	}
+	return true;
+}
+
+void set_dataset(string dataset_name) {
+	dataset = dataset_name;
+}
+
+void set_object(string object_name) {
+	object = object_name;
+}
+
+string get_input() {
+	string input;
+	cin >> input;
+	return input;
+}
+
 int nthOccurrence(const std::string& str, const std::string& findMe, int nth)
 {
 	size_t  pos = 0;
@@ -516,22 +561,7 @@ int main(int argc, char* argv[])
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
-	/*
-	______
-	| ___ \
-	| |_/ /__ _  _ __  __ _  _ __ ___   ___
-	|  __// _` || '__|/ _` || '_ ` _ \ / __|
-	| |  | (_| || |  | (_| || | | | | |\__ \
-	\_|   \__,_||_|   \__,_||_| |_| |_||___/
-	Params used during cloudgen & objectdetection
-	*/
-	string object = "buerli";
-	string dataset = "threshold_eval";
-	string preprocessor_mode = "3d_filtered";
-	vector<float> keypointdetector_threshold = { 0.7f };
-	vector<int> keypointdetector_nof_neighbors = { 5 };
-	vector<tuple<string, vector<double>>> angles;
-	float queryResolution, targetResolution;
+
 	/*
 	______       _    _
 	| ___ \     | |  | |
@@ -572,6 +602,25 @@ int main(int argc, char* argv[])
 	//Clouds used during objectdetection
 	pcl::PointCloud<PointType> query;
 	pcl::PointCloud<PointType> target;
+
+	BaseMenu* CurrentMenu = new MainMenu;
+	bool isQuitOptionSelected = false;
+	while (!isQuitOptionSelected)
+	{
+		CurrentMenu->clearScreen();
+		CurrentMenu->printText();
+
+		char choice = 'z';
+		cin >> choice;
+
+		BaseMenu* NewMenuPointer = CurrentMenu->getNextMenu(toupper(choice), isQuitOptionSelected);
+
+		if (NewMenuPointer)
+		{	
+			delete CurrentMenu;
+			CurrentMenu = NewMenuPointer;
+		}
+	}
 
 
 	//Unordered filtering playground
@@ -913,7 +962,7 @@ int main(int argc, char* argv[])
 #endif
 
 	//Enable for automated detection process
-#if 1
+#if 0
 	get_all_file_names(query_directory, ".ply", query_names);
 	get_all_file_names(target_directory, ".ply", target_names);
 
@@ -1037,7 +1086,7 @@ int main(int argc, char* argv[])
 #endif
 
 	//Enable if the visualization module should be used
-#if 1
+#if 0
 	//Enable if manual transformation matrix construction is desired
 #if 0
 
