@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <chrono>
 #include "../include/menu/base_menu.h"
 
 class FilterMenu : public BaseMenu
@@ -40,19 +41,22 @@ public:
 		case 'M':
 		{
 			state = toggle_filter(std::string("median"));
-			std::cout << "median filter enabled: " << std::to_string(state) << std::endl;
+			std::cout << "median filter state: " << std::to_string(state) << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
 		case 'R':
 		{
 			toggle_filter(std::string("roi"));
-			std::cout << "roi filter enabled: " << std::to_string(state) << std::endl;
+			std::cout << "roi filter state: " << std::to_string(state) << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
 		case 'S':
 		{
 			toggle_filter(std::string("sor"));
-			std::cout << "median filter enabled: " << std::to_string(state) << std::endl;
+			std::cout << "median filter state: " << std::to_string(state) << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
 		case 'Q':
@@ -67,7 +71,6 @@ public:
 		}
 
 		}
-
 		return aNewMenu; // Sending it back to the main function
 	}
  

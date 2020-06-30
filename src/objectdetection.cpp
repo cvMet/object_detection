@@ -529,7 +529,7 @@ bool toggle_filter(string id) {
 	for (int i = 0; i < filter.size(); ++i) {
 		if (id.compare(get<0>(filter[i])) == 0) {
 			get<1>(filter[i]) = !(get<1>(filter[i]));
-			return !(get<1>(filter[i]));
+			return (get<1>(filter[i]));
 		}
 	}
 	return false;
