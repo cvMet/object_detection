@@ -9,14 +9,16 @@
 
 class CloudCreationMenu : public BaseMenu
 {
+
 public:
     CloudCreationMenu()
     {
         m_MenuText = std::string("CloudCreationMenu\n")
             + "Please make your selection\n"
-            + "D - Set dataset\n"
-            + "O - Set object\n"
+            + "D - set Dataset\n"
+            + "O - set Object\n"
             + "F - Filter options\n"
+            + "S - enable/disable Statistics\n"
             + "E - Execute\n"
             + "Q - Quit";
     }
@@ -41,6 +43,12 @@ public:
         case 'F':
         {
             aNewMenu = new FilterMenu(this);
+        }
+        break;
+        case 'S':
+        {
+            std::cout << "statistics state: " << std::to_string(toggle_cloudgen_stats()) << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
         case 'E':

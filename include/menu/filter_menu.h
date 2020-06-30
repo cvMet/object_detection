@@ -47,15 +47,15 @@ public:
 		break;
 		case 'R':
 		{
-			toggle_filter(std::string("roi"));
+			state = toggle_filter(std::string("roi"));
 			std::cout << "roi filter state: " << std::to_string(state) << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
 		case 'S':
 		{
-			toggle_filter(std::string("sor"));
-			std::cout << "median filter state: " << std::to_string(state) << std::endl;
+			state = toggle_filter(std::string("sor"));
+			std::cout << "statistical outlier removal filter state: " << std::to_string(state) << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;

@@ -59,6 +59,7 @@ Params used during cloudgen & objectdetection
 */
 vector<tuple<string, bool>> execution_params;
 vector<tuple<string, bool>> filter;
+bool cloudgen_stats = false;
 vector<float> keypointdetector_threshold = { 0.7f };
 vector<int> keypointdetector_nof_neighbors = { 5 };
 
@@ -535,6 +536,11 @@ bool toggle_filter(string id) {
 	return false;
 }
 
+bool toggle_cloudgen_stats() {
+	cloudgen_stats = !cloudgen_stats;
+	return cloudgen_stats;
+}
+
 string get_input() {
 	std::cout << "enter value: " << std::endl;
 	string input;
@@ -779,13 +785,25 @@ int main(int argc, char* argv[])
 			time_meas();
 			final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.005f);
 			creation_stats.push_back(time_meas("time_backgroundRemoval"));
-			//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
+			if (std::get<1>(filter[1])) {
+				time_meas();
+				final_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.2f);
+				final_cloud = CloudCreator.roi_filter(final_cloud, "y", -0.2f, 0.2f);
+				creation_stats.push_back(time_meas("time_ROIfilter"));
+			}
+			if (std::get<1>(filter[2])) {
+				time_meas();
+				final_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(), 10);
+				creation_stats.push_back(time_meas("time_SORfilter"));
+			}
 			string filename = cloud_directory + "/" + depth_names[i].string();
 			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
-			//string statistics = create_writable_stats(creation_stats);
-			//string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
+			string statistics = create_writable_stats(creation_stats);
+			string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 			pcl::io::savePLYFileASCII(substr, final_cloud);
-			//FileHandler.writeToFile(statistics, stats_filename);
+			if (cloudgen_stats) {
+				FileHandler.writeToFile(statistics, stats_filename);
+			}
 		}
 	}
 
