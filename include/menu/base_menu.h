@@ -3,11 +3,13 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include "../include/menu/base_menu.h"
 
 class BaseMenu
 {
 public:
-    BaseMenu() { m_MenuText = "This shouldn't ever be shown!"; }
+    BaseMenu() { m_MenuText = "This shouldn't ever be shown!", parent = NULL; }
+    bool child = false;
     virtual ~BaseMenu() { }
     virtual BaseMenu *getNextMenu(char iChoice, bool& quit, bool& execute) = 0;
     virtual void printText()
@@ -54,4 +56,5 @@ public:
 
 protected:
     std::string m_MenuText; // This string will be shared by all children (i.e. derived) classes
+    BaseMenu* parent;
 };

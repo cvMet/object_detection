@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
+#include "merge_menu.h"
 
 class MergeMenu : public BaseMenu
 {

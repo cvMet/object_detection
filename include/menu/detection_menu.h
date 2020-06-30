@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
+#include "detection_menu.h"
 
 class DetectionMenu : public BaseMenu
 {

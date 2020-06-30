@@ -2,9 +2,10 @@
 
 #include <iostream>
 #include <string>
-#include "base_menu.h"
 #include "../src/objectdetection.h"
-#include "../include/menu/filter_menu.h"
+#include "base_menu.h"
+#include "cloudcreation_menu.h"
+#include "filter_menu.h"
 
 class CloudCreationMenu : public BaseMenu
 {
@@ -17,8 +18,7 @@ public:
             + "O - Set object\n"
             + "F - Filter options\n"
             + "E - Execute\n"
-            + "Q - Quit\n"
-            + "Selection: ";
+            + "Q - Quit";
     }
 
 
@@ -40,7 +40,7 @@ public:
         break;
         case 'F':
         {
-            aNewMenu = new FilterMenu;
+            aNewMenu = new FilterMenu(this);
         }
         break;
         case 'E':

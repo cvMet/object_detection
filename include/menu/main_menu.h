@@ -3,10 +3,9 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
-#include "../include/menu/cloudcreation_menu.h"
-#include "../include/menu/detection_menu.h"
-#include "../include/menu/merge_menu.h"
-
+#include "merge_menu.h"
+#include "cloudcreation_menu.h"
+#include "detection_menu.h"
 class MainMenu : public BaseMenu
 {
 public:
@@ -17,8 +16,7 @@ public:
 			+ "C - Create Clouds\n"
 			+ "M - Merge Clouds\n"
 			+ "D - Detect Objects\n"
-			+ "Q - Quit\n"
-			+ "Selection: ";
+			+ "Q - Quit";
 	}
 
 	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute) // This is us actually defining the pure virtual method above

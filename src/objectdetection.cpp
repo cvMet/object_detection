@@ -58,6 +58,7 @@ ______
 Params used during cloudgen & objectdetection
 */
 vector<tuple<string, bool>> execution_params;
+vector<tuple<string, bool>> filter;
 vector<float> keypointdetector_threshold = { 0.7f };
 vector<int> keypointdetector_nof_neighbors = { 5 };
 
@@ -68,7 +69,7 @@ string preprocessor_mode = "3d_filtered";
 vector<tuple<string, vector<double>>> angles;
 float queryResolution, targetResolution;
 
-
+class CloudCreationMenu;
 clock_t start, end_time;
 pcl::Correspondences corr;
 bool running = false;
@@ -524,7 +525,18 @@ void set_execution_param(string id) {
 	}
 }
 
+bool toggle_filter(string id) {
+	for (int i = 0; i < filter.size(); ++i) {
+		if (id.compare(get<0>(filter[i])) == 0) {
+			get<1>(filter[i]) = !(get<1>(filter[i]));
+			return !(get<1>(filter[i]));
+		}
+	}
+	return false;
+}
+
 string get_input() {
+	std::cout << "enter value: " << std::endl;
 	string input;
 	cin >> input;
 	return input;
@@ -571,11 +583,21 @@ float get_median(std::vector<float> values) {
 	return *middle;
 }
 
+
+
 int main(int argc, char* argv[])
 {
+	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
+	FileHandler FileHandler;
+	CloudCreator CloudCreator;
+
 	execution_params.push_back(make_tuple("cloudcreation",false));
 	execution_params.push_back(make_tuple("merging", false));
 	execution_params.push_back(make_tuple("detection", false));
+
+	filter.push_back(make_tuple("median", false));
+	filter.push_back(make_tuple("roi", false));
+	filter.push_back(make_tuple("sor", false));
 
 	BaseMenu* CurrentMenu = new MainMenu;
 	bool quit = false;
@@ -592,14 +614,14 @@ int main(int argc, char* argv[])
 
 		if (NewMenuPointer)
 		{
-			delete CurrentMenu;
+			//Delete previous menue if new window is no subwindow of it (prevent memory leaks)
+			if (!NewMenuPointer->child) {
+				delete CurrentMenu;
+			}
 			CurrentMenu = NewMenuPointer;
 		}
 	}
 
-	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
-	FileHandler FileHandler;
-	CloudCreator CloudCreator;
 
 	/*
 	Paths used during cloudgen
@@ -732,10 +754,11 @@ int main(int argc, char* argv[])
 		std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-		//CloudCreator.show_cloud(background_cloud);
-		filtered_background = CloudCreator.median_filter_cloud(background_cloud, 5);
-		//CloudCreator.show_cloud(filtered_background);
-
+		CloudCreator.show_cloud(background_cloud);
+		if (std::get<1>(filter[0])) {
+			background_cloud = CloudCreator.median_filter_cloud(background_cloud, 5);
+		}
+		CloudCreator.show_cloud(background_cloud);
 		//Pop first element (background without query)
 		depth_names.erase(depth_names.begin());
 		for (int i = 0; i < depth_names.size(); ++i) {
@@ -746,15 +769,15 @@ int main(int argc, char* argv[])
 			creation_stats.push_back(time_meas("time_textToDistance"));
 			time_meas();
 			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
-			//CloudCreator.show_cloud(query_cloud);
 			creation_stats.push_back(time_meas("time_distanceToCloud"));
+			//If median filtering enabled
+			if (std::get<1>(filter[0])) {
+				time_meas();
+				query_cloud = CloudCreator.median_filter_cloud(query_cloud, 5);
+				creation_stats.push_back(time_meas("time_medianfilter"));
+			}
 			time_meas();
-			filtered_query = CloudCreator.median_filter_cloud(query_cloud, 5);
-			//CloudCreator.show_cloud(filtered_query);
-			creation_stats.push_back(time_meas("time_medianfilter"));
-			time_meas();
-			final_cloud = CloudCreator.remove_background(filtered_query, filtered_background, 0.005f);
-			//CloudCreator.show_cloud(final_cloud);
+			final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.005f);
 			creation_stats.push_back(time_meas("time_backgroundRemoval"));
 			//temp_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(),10);
 			string filename = cloud_directory + "/" + depth_names[i].string();
