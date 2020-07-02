@@ -14,7 +14,6 @@ public:
 		m_MenuText = std::string("--------------------------\n")
 			+ "Main Menu\n"
 			+ "--------------------------\n"
-			+ "Please make your selection\n"
 			+ "C - Create Clouds\n"
 			+ "M - Merge Clouds\n"
 			+ "D - Detect Objects\n"

@@ -14,7 +14,6 @@ public:
     CloudCreationMenu()
     {
         m_MenuText = std::string("CloudCreationMenu\n")
-            + "Please make your selection\n"
             + "D - set Dataset\n"
             + "O - set Object\n"
             + "F - Filter options\n"

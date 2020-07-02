@@ -4,13 +4,19 @@
 #pragma once
 
 #include <iostream>
-
+//General
 void time_meas(void);
-void set_dataset(std:: string);
-void set_object(std::string);
 std::string get_input(void);
 bool get_path(void);
 void set_execution_param(std::string);
+//Cloudgen
+void set_dataset(std:: string);
+void set_object(std::string);
 bool toggle_filter(std::string);
 bool toggle_cloudgen_stats(void);
-// TODO: Reference additional headers your program requires here.
+//Detection
+void add_detector_threshold(float);
+void add_detector_nn(int);
+void set_preprocessor(string);
+bool toggle_detection_stats(void);
+bool toggle_visualization(void);
