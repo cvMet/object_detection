@@ -11,7 +11,9 @@ class MainMenu : public BaseMenu
 public:
 	MainMenu()
 	{
-		m_MenuText = std::string("Main Menu\n")
+		m_MenuText = std::string("--------------------------\n")
+			+ "Main Menu\n"
+			+ "--------------------------\n"
 			+ "Please make your selection\n"
 			+ "C - Create Clouds\n"
 			+ "M - Merge Clouds\n"

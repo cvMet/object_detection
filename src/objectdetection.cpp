@@ -589,8 +589,6 @@ float get_median(std::vector<float> values) {
 	return *middle;
 }
 
-
-
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;

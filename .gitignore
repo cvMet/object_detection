@@ -6,3 +6,5 @@ src/out/
 clouds/
 PR/
 stats/
+matlab/*.ply
+matlab/*.jpg
