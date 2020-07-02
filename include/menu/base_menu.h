@@ -19,10 +19,15 @@ public:
     virtual void printFlavorText()
     {
         int width = longest_menu_item();
+        int margin = floor((width - MenuName.length()) / 2);
         for (int i = 0; i < width; ++i) {
             std::cout << "-";
         }
-        std::cout << std::endl << MenuName << std::endl;
+        std::cout << std::endl;
+        for (int i = 0; i < margin; ++i) {
+            std::cout << " ";
+        }
+        std::cout << MenuName << std::endl;
         for (int i = 0; i < width; ++i) {
             std::cout << "-";
         }
