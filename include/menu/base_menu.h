@@ -8,13 +8,40 @@
 class BaseMenu
 {
 public:
-    BaseMenu() { m_MenuText = "This shouldn't ever be shown!", parent = NULL; }
+    BaseMenu() { MenuName = "BaseMenu", m_MenuText = "This shouldn't ever be shown!", parent = NULL; }
     bool child = false;
     virtual ~BaseMenu() { }
     virtual BaseMenu *getNextMenu(char iChoice, bool& quit, bool& execute) = 0;
     virtual void printText()
     {
         std::cout << m_MenuText << std::endl;
+    }
+    virtual void printFlavorText()
+    {
+        int width = longest_menu_item();
+        for (int i = 0; i < width; ++i) {
+            std::cout << "-";
+        }
+        std::cout << std::endl << MenuName << std::endl;
+        for (int i = 0; i < width; ++i) {
+            std::cout << "-";
+        }
+        std::cout << std::endl;
+    }
+    virtual int longest_menu_item(void) {
+        std::string delimiter = "\n";
+        std::string s = m_MenuText;
+        size_t pos = 0;
+        std::string token;
+        int max = 0;
+        while ((pos = s.find(delimiter)) != std::string::npos) {
+            token = s.substr(0, pos);
+            if (token.length() > max) {
+                max = token.length();
+            }
+            s.erase(0, pos + delimiter.length());
+        }
+        return max;
     }
 
     void clearScreen()
@@ -55,6 +82,7 @@ public:
     }
 
 protected:
-    std::string m_MenuText; // This string will be shared by all children (i.e. derived) classes
+    std::string MenuName;
+    std::string m_MenuText;// This string will be shared by all children (i.e. derived) classes
     BaseMenu* parent;
 };

@@ -13,8 +13,8 @@ class CloudCreationMenu : public BaseMenu
 public:
     CloudCreationMenu()
     {
-        m_MenuText = std::string("CloudCreationMenu\n")
-            + "D - set Dataset\n"
+        MenuName = std::string("CloudCreationMenu");
+        m_MenuText = std::string("D - set Dataset\n")
             + "O - set Object\n"
             + "F - Filter options\n"
             + "S - enable/disable Statistics\n"

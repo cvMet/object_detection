@@ -10,8 +10,8 @@ class DetectionMenu : public BaseMenu
 public:
     DetectionMenu()
     {
-        m_MenuText = std::string("Detection Menu\n")
-            + "D - set Dataset\n"
+        MenuName = std::string("Detection Menu");
+        m_MenuText = std::string("D - set Dataset\n")
             + "O - set Object\n"
             + "P - set Preprocessor mode\n"
             + "T - add KPD Threshold (default = 0.7)\n"

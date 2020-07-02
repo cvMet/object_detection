@@ -627,6 +627,7 @@ int main(int argc, char* argv[])
 	while (!quit && !execute)
 	{
 		CurrentMenu->clearScreen();
+		CurrentMenu->printFlavorText();
 		CurrentMenu->printText();
 
 		char choice = 'z';

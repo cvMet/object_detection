@@ -10,7 +10,8 @@ class MergeMenu : public BaseMenu
 public:
     MergeMenu()
     {
-        m_MenuText = std::string("CloudCreationMenu\n")
+        MenuName = std::string("MergeMenu\n");
+        m_MenuText = std::string("Please make your selection\n")
             + std::string("Please make your selection\n")
             + std::string("a - Return to MainMenu\n")
             + std::string("b - Return to MainMenu");

@@ -22,8 +22,8 @@ public:
 
 	FilterMenu::FilterMenu(BaseMenu* menu)
 	{
-		m_MenuText = std::string("Filter Menu\n")
-			+ "Choose the filters you want to apply during cloud creation\n"
+		MenuName = std::string("Filter Menu");
+		m_MenuText = std::string("Choose the filters you want to apply during cloud creation\n")
 			+ "M - Median filter\n"
 			+ "R - ROI filter\n"
 			+ "S - SOR filter\n"
