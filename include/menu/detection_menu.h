@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
-#include "detection_menu.h"
+#include "../src/objectdetection.h"
 
 class DetectionMenu : public BaseMenu
 {

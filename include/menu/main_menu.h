@@ -6,6 +6,8 @@
 #include "merge_menu.h"
 #include "cloudcreation_menu.h"
 #include "detection_menu.h"
+#include "../src/objectdetection.h"
+
 class MainMenu : public BaseMenu
 {
 public:

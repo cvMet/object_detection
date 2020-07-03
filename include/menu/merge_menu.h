@@ -3,18 +3,17 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
-#include "merge_menu.h"
+#include "../src/objectdetection.h"
 
 class MergeMenu : public BaseMenu
 {
 public:
     MergeMenu()
     {
-        MenuName = std::string("MergeMenu\n");
-        m_MenuText = std::string("Please make your selection\n")
-            + std::string("Please make your selection\n")
-            + std::string("a - Return to MainMenu\n")
-            + std::string("b - Return to MainMenu");
+        MenuName = std::string("Merge Menu");
+        m_MenuText = std::string("V - enable/disable Visualization\n")
+            + "E - Execute\n"
+            + "Q - Quit";
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -23,14 +22,23 @@ public:
 
         switch (choice)
         {
-        case 'a':
+        case 'V':
         {
-            std::cout << "pushed 1" << std::endl;
+            std::cout << "visualization state: " << std::to_string(toggle_visualization()) << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
-        case 'b':
+
+        case 'E':
         {
-            std::cout << "pushed 2" << std::endl;
+            set_execution_param(std::string("merging"));
+            execute = true;
+        }
+        break;
+
+        case 'Q':
+        {
+            quit = true;
         }
         break;
 

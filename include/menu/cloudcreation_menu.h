@@ -2,10 +2,10 @@
 
 #include <iostream>
 #include <string>
-#include "../src/objectdetection.h"
 #include "base_menu.h"
 #include "cloudcreation_menu.h"
 #include "filter_menu.h"
+#include "../src/objectdetection.h"
 
 class CloudCreationMenu : public BaseMenu
 {
@@ -13,7 +13,7 @@ class CloudCreationMenu : public BaseMenu
 public:
     CloudCreationMenu()
     {
-        MenuName = std::string("CloudCreationMenu");
+        MenuName = std::string("Cloud Creation Menu");
         m_MenuText = std::string("D - set Dataset\n")
             + "O - set Object\n"
             + "F - Filter options\n"

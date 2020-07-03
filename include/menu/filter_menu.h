@@ -4,6 +4,7 @@
 #include <string>
 #include <chrono>
 #include "../include/menu/base_menu.h"
+#include "../src/objectdetection.h"
 
 class FilterMenu : public BaseMenu
 {

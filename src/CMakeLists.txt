@@ -18,9 +18,10 @@ add_definitions(${PCL_DEFINITIONS})
 file(GLOB SOURCES
     objectdetection.cpp
     ../include/*.h
+    ../include/menu/*.h
 )
 
-add_executable (objectdetection ${SOURCES})
+add_executable (objectdetection ${SOURCES} )
 target_link_libraries (objectdetection ${PCL_LIBRARIES})
 
 
