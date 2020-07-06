@@ -57,15 +57,16 @@ ______
 \_|   \__,_||_|   \__,_||_| |_| |_||___/
 Params used during cloudgen & objectdetection
 */
-vector<tuple<string, bool>> execution_params;
-vector<tuple<string, bool>> filter;
-vector<tuple<string, vector<double>>> angles;
-vector<float> keypointdetector_threshold = { 0.7f };
-vector<int> keypointdetector_nof_neighbors = { 5 };
-string object = "buerli";
-string dataset = "threshold_eval";
-string preprocessor_mode = "3d_filtered";
-clock_t start, end_time;
+std::vector<tuple<bshot_descriptor, int>> learned_descriptors;
+std::vector<tuple<string, bool>> execution_params;
+std::vector<tuple<string, bool>> filter;
+std::vector<tuple<string, vector<double>>> angles;
+std::vector<float> keypointdetector_threshold = { 0.7f };
+std::vector<int> keypointdetector_nof_neighbors = { 5 };
+std::string object = "buerli";
+std::string dataset = "threshold_eval";
+std::string preprocessor_mode = "3d_filtered";
+std::clock_t start, end_time;
 pcl::Correspondences corr;
 float queryResolution, targetResolution;
 float shotRadius_ = 30;
@@ -582,6 +583,10 @@ void set_dataset(string dataset_name) {
 	dataset = dataset_name;
 }
 
+void set_query_learning() {
+	query_learning = true;
+}
+
 void set_preprocessor(string preprocessor) {
 	preprocessor_mode = preprocessor;
 }
@@ -666,6 +671,9 @@ int main(int argc, char* argv[])
 	string permutation_directory = "../../../../clouds/merging/permutation";
 	vector<fs::path> origin_names;
 	vector<fs::path> permutation_names;
+	//Paths used during learning
+	string query_learning_directory = "../../../../clouds/learning";
+	vector<fs::path> query_learning_names;
 	//Clouds used during cloud generation
 	pcl::PointCloud<pcl::PointXYZ> query_cloud;
 	pcl::PointCloud<pcl::PointXYZ> background_cloud;
@@ -772,7 +780,44 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
+	if (query_learning) {
+		get_all_file_names(query_learning_directory, ".ply", query_learning_names);
 
+		for (int i = 0; i < query_learning_names.size(); ++i) {
+			Descriptor Describer;
+			Normals NormalEstimator;
+			KeypointDetector KeypointDetector;
+			string query_filename = query_learning_directory + "/" + query_learning_names[i].string();
+			string query_fileformat = get_fileformat(query_filename);
+			query = load_3dmodel(query_filename, query_fileformat);
+			queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
+			//Estimate Normals
+			NormalEstimator.query = query;
+			NormalEstimator.calculateNormals(5 * queryResolution);
+			NormalEstimator.removeQueryNaNNormals();
+			query = NormalEstimator.query;
+			//Detect keypoints
+			KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, query, NormalEstimator.queryNormals_, queryResolution, 0.7f, 5);
+			//Calculate descriptor for each keypoint
+			Describer.NormalEstimator = NormalEstimator;
+			Describer.KeypointDetector = KeypointDetector;
+			Describer.query_ = query;
+			Describer.calculateDescriptor(supportRadius_ * queryResolution);
+			for (int i = 0; i < Describer.queryDescriptor_.size(); ++i) {
+				auto position = find_if(learned_descriptors.begin(), learned_descriptors.end(),
+					[=](auto item)
+					{
+						return (get<0>(item).bits == Describer.queryDescriptor_[i].bits);
+					});
+				if (position != learned_descriptors.end()) {
+					std::get<1>(learned_descriptors[i]) += 1;
+				}
+				else {
+					learned_descriptors.push_back(make_tuple(Describer.queryDescriptor_[i], 1));
+				}
+			}
+		}
+	}
 
 	//execution_params[0] = CLOUDCREATION
 	if (std::get<1>(execution_params[0])) {
@@ -1003,8 +1048,7 @@ int main(int argc, char* argv[])
 				for (int query_number = 0; query_number < query_names.size(); ++query_number)
 				{
 					string query_filename = query_directory + "/" + query_names[query_number].string();
-					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-						+ "/log.csv";
+					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor+ "/log.csv";
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
 						vector<tuple<string, float>> processing_times, stats;
@@ -1059,6 +1103,13 @@ int main(int argc, char* argv[])
 						Describer.calculateDescriptor(supportRadius_ * queryResolution, supportRadius_ * targetResolution);
 						processing_times.push_back(time_meas("calculating descriptor"));
 
+						if (query_learning) {
+							vector<bshot_descriptor> descr;
+							for (int i = 0; i < learned_descriptors.size(); ++i) {
+								descr.push_back(get<0>(learned_descriptors.at(i)));
+							}
+							Describer.queryDescriptor_ = descr;
+						}
 						//Matching
 						time_meas();
 						float c_threshold = 1.0f;

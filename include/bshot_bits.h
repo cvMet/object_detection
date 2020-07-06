@@ -96,6 +96,19 @@ public :
         voxel_grid.filter(cloud2_keypoints);
     }
     
+    void calculate_SHOT(float radius) {
+        // SHOT estimation object.
+        pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot;
+        shot.setRadiusSearch(radius);
+        //shot.setNumberOfThreads(30);
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
+        shot.setSearchMethod(kdtree);
+        shot.setInputCloud(cloud1_keypoints.makeShared());
+        shot.setSearchSurface(cloud1.makeShared());
+        shot.setInputNormals(cloud1_normals.makeShared());
+        shot.compute(cloud1_shot);
+    }
+
     void calculate_SHOT ( float radius_model, float radius_scene )
     {
         // SHOT estimation object.
@@ -114,6 +127,10 @@ public :
         shot.setSearchSurface(cloud2.makeShared());
         shot.setInputNormals(cloud2_normals.makeShared());
         shot.compute(cloud2_shot);
+    }
+
+    void compute_single_bshot() {
+        compute_bshot_from_SHOT(cloud1_shot, cloud1_bshot);
     }
 
     void compute_bshot()

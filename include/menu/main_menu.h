@@ -5,6 +5,7 @@
 #include "base_menu.h"
 #include "merge_menu.h"
 #include "cloudcreation_menu.h"
+#include "learning_menu.h"
 #include "detection_menu.h"
 #include "../src/objectdetection.h"
 
@@ -14,9 +15,10 @@ public:
 	MainMenu()
 	{
 		MenuName = std::string("Main Menu");
-		m_MenuText = std::string("C - Create Clouds\n")
-			+ "M - Merge Clouds\n"
-			+ "D - Detect Objects\n"
+		m_MenuText = std::string("C - Create clouds\n")
+			+ "M - Merge clouds\n"
+			+ "D - Detect objects\n"
+			+ "L - Learn descriptors\n"
 			+ "Q - Quit";
 	}
 
@@ -39,6 +41,11 @@ public:
 			case 'D':
 			{
 				aNewMenu = new DetectionMenu;
+			}
+			break;
+			case 'L':
+			{
+				aNewMenu = new LearningMenu(this);
 			}
 			break;
 			case 'Q':

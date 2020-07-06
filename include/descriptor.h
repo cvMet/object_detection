@@ -46,6 +46,18 @@ public:
 
 	pcl::PointCloud<pcl::PointXYZ> query_, target_;
 
+	void calculateDescriptor(float support_radius) {
+		bshot bshotEstimation;
+		bshotEstimation.cloud1_normals = NormalEstimator.queryNormals_;
+		bshotEstimation.cloud1_keypoints = KeypointDetector.queryKeypoints_;
+		bshotEstimation.cloud1 = query_;
+		
+		bshotEstimation.calculate_SHOT(support_radius);
+		bshotEstimation.compute_single_bshot();
+
+		queryDescriptor_ = bshotEstimation.cloud1_bshot;
+	}
+	
 	void calculateDescriptor(float modelSupportradius, float sceneSupportradius) {
 #if isshot
 

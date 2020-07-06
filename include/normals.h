@@ -9,6 +9,29 @@ public:
 	pcl::PointCloud<pcl::Normal> queryNormals_, targetNormals_;
 	pcl::PointCloud<pcl::PointXYZ> query, target;
 
+
+	void calculateNormals(float radius) {
+		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normalEstimation;
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
+		normalEstimation.setSearchMethod(kdtree);
+		// Set coordinates of viewpoint (x,y,z)
+		normalEstimation.setViewPoint(0, 0, 10);
+		//Estimate Model Normals
+		normalEstimation.setRadiusSearch(radius);
+		normalEstimation.setInputCloud(query.makeShared());
+		normalEstimation.compute(queryNormals_);
+	}
+	void removeQueryNaNNormals() {
+		//Remove NAN normals and their correspondences in model and scene
+		std::vector<int> index;
+		pcl::removeNaNNormalsFromPointCloud(queryNormals_, queryNormals_, index);
+		pcl::PointCloud<pcl::PointXYZ> tempCloud;
+		for (int i = 0; i < queryNormals_.size(); ++i) {
+			tempCloud.push_back(query.at(index[i]));
+		}
+		query = tempCloud;
+	}
+
 	void calculateNormals(float radiusModel, float radiusScene)
 	{
 		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normalEstimation;

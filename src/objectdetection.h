@@ -22,3 +22,5 @@ bool toggle_detection_stats(void);
 bool toggle_visualization(void);
 void set_detection_threshold(int);
 bool toggle_detection_logging(void);
+//Learning
+void set_query_learning(void);
