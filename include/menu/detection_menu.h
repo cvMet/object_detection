@@ -14,10 +14,12 @@ public:
         m_MenuText = std::string("D - set Dataset\n")
             + "O - set Object\n"
             + "P - set Preprocessor mode\n"
+            + "C - set deteCtion threshold\n"
             + "T - add KPD Threshold (default = 0.7)\n"
             + "N - add KPD #Neighbors (default = 5)\n"
-            + "S - enable/disable Statistics\n"
+            + "S - enable/disable runtime Statistics\n"
             + "V - enable/disable Visualization\n"
+            + "L - enable/disable detection Logging\n"
             + "E - Execute\n"
             + "Q - Quit";
     }
@@ -38,6 +40,11 @@ public:
             set_object(get_input());
         }
         break;
+        case 'C':
+        {
+            set_detection_threshold(std::stoi(get_input()));
+        }
+        break;
         case 'P':
         {
             set_preprocessor(get_input());
@@ -50,7 +57,7 @@ public:
         break;
         case 'N':
         {
-            add_detector_threshold(std::stoi(get_input()));
+            add_detector_nn(std::stoi(get_input()));
         }
         break;
         case 'S':
@@ -62,6 +69,12 @@ public:
         case 'V':
         {
             std::cout << "visualization state: " << std::to_string(toggle_visualization()) << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        break;
+        case 'L':
+        {
+            std::cout << "visualization state: " << std::to_string(toggle_detection_logging()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;

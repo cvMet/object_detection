@@ -20,3 +20,5 @@ void add_detector_nn(int);
 void set_preprocessor(string);
 bool toggle_detection_stats(void);
 bool toggle_visualization(void);
+void set_detection_threshold(int);
+bool toggle_detection_logging(void);

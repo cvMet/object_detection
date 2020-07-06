@@ -20,11 +20,11 @@ public:
 			+ "Q - Quit";
 	}
 
-	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute) // This is us actually defining the pure virtual method above
+	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
 	{
-		BaseMenu* aNewMenu = 0; // We're setting up the pointer here, but makin sure it's null (0)
+		BaseMenu* aNewMenu = 0;
 
-		switch (choice) // Notice - I have only done "options". You would obviously need to do this for all of your menus
+		switch (choice)
 		{
 			case 'C':
 			{
@@ -43,7 +43,6 @@ public:
 			break;
 			case 'Q':
 			{
-				// Ah, they selected quit! Update the bool we got as input
 				quit = true;
 			}
 			break;
@@ -54,7 +53,7 @@ public:
 
 		}
 
-		return aNewMenu; // Sending it back to the main function
+		return aNewMenu;
 	}
 
 };
