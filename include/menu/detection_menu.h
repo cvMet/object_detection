@@ -20,6 +20,7 @@ public:
             + "S - enable/disable runtime Statistics\n"
             + "V - enable/disable Visualization\n"
             + "L - enable/disable detection Logging\n"
+            + "M - enable/disable Match retrieval\n"
             + "E - Execute\n"
             + "Q - Quit";
     }
@@ -74,7 +75,13 @@ public:
         break;
         case 'L':
         {
-            std::cout << "visualization state: " << std::to_string(toggle_detection_logging()) << std::endl;
+            std::cout << "logging state: " << std::to_string(toggle_detection_logging()) << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        break;
+        case 'M':
+        {
+            std::cout << "match_retrieval state: " << std::to_string(toggle_match_retrieval()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;

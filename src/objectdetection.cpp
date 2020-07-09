@@ -63,8 +63,8 @@ std::vector<tuple<string, bool>> filter;
 std::vector<tuple<string, vector<double>>> angles;
 std::vector<float> keypointdetector_threshold = { 0.7f };
 std::vector<int> keypointdetector_nof_neighbors = { 5 };
-std::string object = "buerli";
-std::string dataset = "threshold_eval";
+std::string object = "weizenbroetchen_sequence";
+std::string dataset = "object_threshold_eval";
 std::string preprocessor_mode = "3d_filtered";
 std::clock_t start, end_time;
 pcl::Correspondences corr;
@@ -77,6 +77,7 @@ bool query_learning = false;
 bool cloudgen_stats = false;
 bool detection_stats = false;
 bool detection_log = false;
+bool match_retrieval = false;
 bool visu = false;
 bool running = false;
 
@@ -147,12 +148,25 @@ pcl::PointCloud<PointType> addGaussianNoise(pcl::PointCloud<PointType> pointClou
 
 pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances) {
 	pcl::Correspondences temp;
-	for (int i = 0; i < corr.size(); ++i) {
+	for (int i = 0; i < euclidean_distances.size(); ++i) {
 		if (euclidean_distances[i] < distance_threshold) {
 			temp.push_back(corr.at(i));
 		}
 		else {
 			std::cout << "FP @ " + to_string(corr.at(i).index_match) << endl;
+		}
+	}
+	return temp;
+}
+
+pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances, pcl::Correspondences corresp) {
+	pcl::Correspondences temp;
+	for (int i = 0; i < corresp.size(); ++i) {
+		if (euclidean_distances[i] < distance_threshold) {
+			temp.push_back(corresp.at(i));
+		}
+		else {
+			std::cout << "FP @ " + to_string(corresp.at(i).index_match) << endl;
 		}
 	}
 	return temp;
@@ -267,6 +281,19 @@ std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::Point
 	return distance;
 }
 
+std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> query_keypoints, const pcl::PointCloud<pcl::PointXYZ> target_keypoints, pcl::Correspondences corresp) {
+	std::vector<float> distance;
+	for (int i = 0; i < corresp.size(); ++i) {
+		distance.push_back(
+			pow((query_keypoints.at(corresp.at(i).index_query).x - target_keypoints.at(corresp.at(i).index_match).x), 2) +
+			pow((query_keypoints.at(corresp.at(i).index_query).y - target_keypoints.at(corresp.at(i).index_match).y), 2) +
+			pow((query_keypoints.at(corresp.at(i).index_query).z - target_keypoints.at(corresp.at(i).index_match).z), 2)
+		);
+		distance[i] = sqrt(distance[i]);
+	}
+	return distance;
+}
+
 std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 	vector<double> angles;
 	double neg_sinTheta = transformation_matrix(2, 0);
@@ -361,6 +388,16 @@ std::string concatenate_distances(std::vector<float>& euclidean_distance) {
 	for (int i = 0; i < corr.size(); ++i)
 	{
 		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
+		data += "\n";
+	}
+	return data;
+}
+
+std::string concatenate_distances(std::vector<float>& euclidean_distance, pcl::Correspondences corresp) {
+	std::string data = "";
+	for (int i = 0; i < corresp.size(); ++i)
+	{
+		data += std::to_string(corresp.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
 		data += "\n";
 	}
 	return data;
@@ -528,20 +565,31 @@ bool toggle_detection_logging() {
 	return detection_log;
 }
 
+bool toggle_match_retrieval() {
+	match_retrieval = !match_retrieval;
+	return match_retrieval;
+}
+
 bool toggle_visualization() {
 	visu = !visu;
 	return visu;
 }
 
 void ransac_rejection(pcl::Correspondences corresp, pcl::PointCloud<pcl::PointXYZ> queryKeypoints, pcl::PointCloud<pcl::PointXYZ> targetKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ>& RansacRejector) {
-	pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
-	RansacRejector.setInputSource(queryKeypoints.makeShared());
-	RansacRejector.setInputTarget(targetKeypoints.makeShared());
-	//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
-	RansacRejector.setInlierThreshold(0.005);
-	RansacRejector.setInputCorrespondences(correspond);
-	RansacRejector.getCorrespondences(corr);
-	std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
+	if (corresp.size() > 0) {
+		pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
+		RansacRejector.setInputSource(queryKeypoints.makeShared());
+		RansacRejector.setInputTarget(targetKeypoints.makeShared());
+		//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
+		RansacRejector.setInlierThreshold(0.005);
+		RansacRejector.setInputCorrespondences(correspond);
+		RansacRejector.getCorrespondences(corr);
+		std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
+	}
+	else {
+		corr.clear();
+		std::cout << "passed empty corresp vector to RANSAC" << endl;
+	}
 }
 
 void time_meas() {
@@ -561,6 +609,11 @@ void time_meas() {
 void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector) {
 	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
 	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.queryKeypoints_.size()) << endl;
+};
+
+void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector, pcl::Correspondences& corresp) {
+	std::cout << "TP: " << true_positives.size() << ", FP: " << corresp.size() - true_positives.size() << endl;
+	std::cout << "Precision: " << (float)true_positives.size() / (float)corresp.size() << " Recall: " << true_positives.size() / (float)(detector.queryKeypoints_.size()) << endl;
 };
 
 void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path>& ret)
@@ -803,17 +856,18 @@ int main(int argc, char* argv[])
 			Describer.KeypointDetector = KeypointDetector;
 			Describer.query_ = query;
 			Describer.calculateDescriptor(supportRadius_ * queryResolution);
-			for (int i = 0; i < Describer.queryDescriptor_.size(); ++i) {
+			for (int descriptor = 0; descriptor < Describer.queryDescriptor_.size(); ++descriptor) {
 				auto position = find_if(learned_descriptors.begin(), learned_descriptors.end(),
 					[=](auto item)
 					{
-						return (get<0>(item).bits == Describer.queryDescriptor_[i].bits);
+						return (get<0>(item).bits == Describer.queryDescriptor_[descriptor].bits);
 					});
 				if (position != learned_descriptors.end()) {
-					std::get<1>(learned_descriptors[i]) += 1;
+					std::get<1>(learned_descriptors[descriptor]) += 1;
+					std::cout << "descr: " << std::to_string(descriptor) << " count: " << std::to_string(std::get<1>(learned_descriptors[descriptor])) << std::endl;
 				}
 				else {
-					learned_descriptors.push_back(make_tuple(Describer.queryDescriptor_[i], 1));
+					learned_descriptors.push_back(make_tuple(Describer.queryDescriptor_[descriptor], 1));
 				}
 			}
 		}
@@ -1049,6 +1103,7 @@ int main(int argc, char* argv[])
 				{
 					string query_filename = query_directory + "/" + query_names[query_number].string();
 					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor+ "/log.csv";
+					string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
 						vector<tuple<string, float>> processing_times, stats;
@@ -1086,6 +1141,7 @@ int main(int argc, char* argv[])
 						query = NormalEstimator.query;
 						target = NormalEstimator.target;
 						processing_times.push_back(time_meas("normal estimation"));
+
 						//Detect keypoints
 						time_meas();
 						KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, query, NormalEstimator.queryNormals_, queryResolution,
@@ -1112,10 +1168,15 @@ int main(int argc, char* argv[])
 						}
 						//Matching
 						time_meas();
-						float c_threshold = 1.0f;
+						float c_threshold = 0.95f;
 						Matcher.desc = Describer;
 						Matcher.calculateCorrespondences(c_threshold);
 						processing_times.push_back(time_meas("matching"));
+						//if (match_retrieval) {
+						//	std::string matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";;
+						//	FileHandler.writeToFile(matches, match_log_filename);
+						//	continue;
+						//}
 
 						// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
 						time_meas();
@@ -1135,12 +1196,21 @@ int main(int argc, char* argv[])
 
 						// Result evaluation according to Buch et al.
 						float distance_threshold = shotRadius_ * queryResolution / 2;
+						//std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, Matcher.corresp);
 						std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_);
+						//pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance, Matcher.corresp);
 						pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
+						//print_results(true_positives, KeypointDetector, Matcher.corresp);
 						print_results(true_positives, KeypointDetector);
 						int NOF_keypoints = (KeypointDetector.targetKeypoints_.size() < KeypointDetector.queryKeypoints_.size()) ? KeypointDetector.targetKeypoints_.size() : KeypointDetector.queryKeypoints_.size();
+						//std::string results = concatenate_distances(euclidean_distance, Matcher.corresp);
 						std::string results = concatenate_distances(euclidean_distance);
 						std::string footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+						if (match_retrieval) {
+							std::string matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(corr.size()) + "\n";;
+							FileHandler.writeToFile(matches, match_log_filename);
+							continue;
+						}
 						FileHandler.writeToFile(results, pr_filename);
 						FileHandler.writeToFile(footer, pr_filename);
 						if (detection_stats) {
@@ -1172,7 +1242,7 @@ int main(int argc, char* argv[])
 							viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.targetKeypoints_.makeShared(), blue, "sample cloud2");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
 							//add lines between the correspondences
-							viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), KeypointDetector.targetKeypoints_.makeShared(), corr, "correspondences");
+							viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), KeypointDetector.targetKeypoints_.makeShared(), Matcher.corresp, "correspondences");
 							//add query points to visualizer
 							viewer->addPointCloud<pcl::PointXYZ>(query.makeShared(), "sample cloud3");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");

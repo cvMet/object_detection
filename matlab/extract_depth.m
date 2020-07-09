@@ -3,12 +3,12 @@ close 'all';
 
 addpath('..\melexis')
 %Choose which elements of dataset should get extracted
-objects = ["sensorcase","whitebottle70","buerli","m26","roggenbroetli"];
+objects = ["Weizenbroetchen_600_6_White_520"];
 
 for object=1:(length(objects))
-    directory = strcat('..\datasets\l2score_eval_v2\picture_streams\',objects(object),'\*');
-    saveDir = strcat('..\datasets\l2score_eval_v2\raw_depth\',objects(object),'\');
-    pictureDir = strcat('..\datasets\l2score_eval_v2\images\',objects(object),'\');
+    directory = strcat('..\datasets\object_threshold_eval\picture_streams\',objects(object),'\*');
+    saveDir = strcat('..\datasets\object_threshold_eval\raw_depth\',objects(object),'\');
+    pictureDir = strcat('..\datasets\object_threshold_eval\images\',objects(object),'\');
     numToAverage = 40;
     folders = dir(directory);
     files = dir(strcat(folders(1).folder, '\', folders(1).name, '\*.bltstream'));
