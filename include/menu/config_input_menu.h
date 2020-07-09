@@ -3,23 +3,22 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
-#include "learning_menu.h"
+#include "config_kpd_menu.h"
 #include "../src/objectdetection.h"
 
-class LearningMenu : public BaseMenu
+class ConfigInputMenu : public BaseMenu
 {
-
 public:
-    LearningMenu(BaseMenu* menu)
+    ConfigInputMenu(BaseMenu* menu)
     {
-        MenuName = std::string("Learning Menu");
-        m_MenuText = std::string("L - enable query Learning\n")
-            + "E - Execute\n"
+        MenuName = std::string("Input Config Menu");
+        m_MenuText = std::string("D - set Dataset\n")
+            + "O - set Object\n"
+            + "P - set Preprocessor mode\n"
             + "R - Return";
         parent = menu;
         child = true;
     }
-
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
     {
@@ -27,24 +26,25 @@ public:
 
         switch (choice)
         {
-        case 'E':
+        case 'D':
         {
-            execute = true;
+            set_dataset(get_input());
         }
         break;
-
-        case 'L':
+        case 'O':
         {
-            set_query_learning();
+            set_object(get_input());
         }
         break;
-
+        case 'P':
+        {
+            set_preprocessor(get_input());
+        }
         case 'R':
         {
             aNewMenu = parent;
         }
         break;
-
         default:
         {
             // Do nothing - we won't change the menu
@@ -52,6 +52,6 @@ public:
 
         }
 
-        return aNewMenu;
+        return aNewMenu; // Sending it back to the main function
     }
 };

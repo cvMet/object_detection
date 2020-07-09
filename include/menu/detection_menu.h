@@ -7,6 +7,7 @@
 #include "config_normal_estimator_menu.h"
 #include "config_output_menu.h"
 #include "config_matcher_menu.h"
+#include "config_input_menu.h"
 #include "../src/objectdetection.h"
 
 class DetectionMenu : public BaseMenu
@@ -15,14 +16,12 @@ public:
     DetectionMenu(BaseMenu* menu)
     {
         MenuName = std::string("Detection Menu");
-        m_MenuText = std::string("D - set Dataset\n")
-            + "O - set Object\n"
-            + "P - set Preprocessor mode\n"
-            + "C - set deteCtion threshold\n"
+        m_MenuText = std::string("C - set deteCtion threshold\n")
+            + "I - configure Input\n"
             + "N - configure Normal estimator\n"
             + "K - configure KPD\n"
             + "M - configure Matcher\n"
-            + "U - configure outpUt\n"
+            + "O - configure Output\n"
             + "E - Execute\n"
             + "R - Return";
         parent = menu;
@@ -35,29 +34,19 @@ public:
 
         switch (choice)
         {
-        case 'D':
-        {
-            set_dataset(get_input());
-        }
-        break;
-        case 'O':
-        {
-            set_object(get_input());
-        }
-        break;
         case 'C':
         {
             set_detection_threshold(std::stoi(get_input()));
         }
         break;
+        case 'I':
+        {
+            aNewMenu = new ConfigInputMenu(this);
+        }
+        break;
         case 'N':
         {
             aNewMenu = new ConfigNEMenu(this);
-        }
-        break;
-        case 'P':
-        {
-            set_preprocessor(get_input());
         }
         break;
         case 'K':
@@ -70,7 +59,7 @@ public:
             aNewMenu = new ConfigMatcherMenu(this);
         }
         break;
-        case 'U':
+        case 'O':
         {
             aNewMenu = new ConfigOutputMenu(this);
         }

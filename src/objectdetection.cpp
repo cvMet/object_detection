@@ -1245,7 +1245,7 @@ int main(int argc, char* argv[])
 							FileHandler.writeToFile(stats, stats_filename);
 						}
 						if (detection_log) {
-							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((true_positives.size() >= detection_threshold)) + "\n";;
+							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((true_positives.size() >= detection_threshold)) + "\n";
 							FileHandler.writeToFile(log, log_filename);
 						}
 						if (visu) {
