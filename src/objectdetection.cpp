@@ -71,6 +71,7 @@ pcl::Correspondences corr;
 float queryResolution, targetResolution;
 float shotRadius_ = 30;
 float fpfhRadius_ = 20;
+float matcher_distance_threshold = 0.95f;
 const int rows = 240, columns = 320;
 int detection_threshold = 0;
 int ne_scalefactor = 5;
@@ -81,6 +82,7 @@ bool detection_log = false;
 bool match_retrieval = false;
 bool visu = false;
 bool running = false;
+bool ransac = true;
 
 #if isshot
 const float supportRadius_ = shotRadius_;
@@ -556,6 +558,11 @@ bool toggle_cloudgen_stats() {
 	return cloudgen_stats;
 }
 
+bool toggle_ransac() {
+	ransac = !ransac;
+	return ransac;
+}
+
 bool toggle_detection_stats() {
 	detection_stats = !detection_stats;
 	return detection_stats;
@@ -661,16 +668,20 @@ void set_detection_threshold(int threshold) {
 	detection_threshold = threshold;
 }
 
+void set_ne_scalefactor(int factor) {
+	ne_scalefactor = factor;
+}
+
+void set_matcher_distance_threshold(float threshold) {
+	matcher_distance_threshold = threshold;
+}
+
 void add_detector_threshold(float threshold) {
 	keypointdetector_threshold.push_back(threshold);
 }
 
 void add_detector_nn(int neighbor) {
 	keypointdetector_nof_neighbors.push_back(neighbor);
-}
-
-void add_ne_scalefactor(int factor) {
-	ne_scalefactor = factor;
 }
 
 int main(int argc, char* argv[])
@@ -1171,50 +1182,62 @@ int main(int argc, char* argv[])
 							}
 							Describer.queryDescriptor_ = descr;
 						}
+						else {}
 						//Matching
 						time_meas();
-						float c_threshold = 0.95f;
 						Matcher.desc = Describer;
-						Matcher.calculateCorrespondences(c_threshold);
+						Matcher.calculateCorrespondences(matcher_distance_threshold);
 						processing_times.push_back(time_meas("matching"));
-						//if (match_retrieval) {
-						//	std::string matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";;
-						//	FileHandler.writeToFile(matches, match_log_filename);
-						//	continue;
-						//}
+
+						// Output Preparation --> either with or without RANSAC
+						float distance_threshold = shotRadius_ * queryResolution / 2;
+						std::vector<float> euclidean_distance;
+						pcl::Correspondences true_positives;
+						int NOF_keypoints = 0;
+						std::string results;
+						std::string footer;
 
 						// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-						time_meas();
-						RansacRejector.setMaximumIterations(1000);
-						ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
-						Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
-						pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, transformation_matrix);
-						pcl::transformPointCloud(query, query, transformation_matrix);
-						processing_times.push_back(time_meas("Ransac Rejection"));
+						if (ransac) {
+							time_meas();
+							RansacRejector.setMaximumIterations(1000);
+							ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
+							Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
+							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, transformation_matrix);
+							pcl::transformPointCloud(query, query, transformation_matrix);
+							processing_times.push_back(time_meas("Ransac Rejection"));
+							// Iterative closest Point ICP
+							time_meas();
+							Eigen::Matrix4f icp_transformation_matrix = icp(query, target);
+							pcl::transformPointCloud(query, query, icp_transformation_matrix);
+							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, icp_transformation_matrix);
+							processing_times.push_back(time_meas("ICP"));
+							//Eval
+							euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_);
+							true_positives = get_true_positives(distance_threshold, euclidean_distance);
+							print_results(true_positives, KeypointDetector);
+							results = concatenate_distances(euclidean_distance);
+						}
+						else {
+							euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, Matcher.corresp);
+							std::cout << "Since RANSAC is disabled euclidean distance can not be calculated accurately -> No TP / FP data available" << endl;
+							std::cout << "# Matches: " << Matcher.corresp.size();
+							results = concatenate_distances(euclidean_distance, Matcher.corresp);
+						}
 
-						// Iterative closest Point ICP
-						time_meas();
-						Eigen::Matrix4f icp_transformation_matrix = icp(query, target);
-						pcl::transformPointCloud(query, query, icp_transformation_matrix);
-						pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, icp_transformation_matrix);
-						processing_times.push_back(time_meas("ICP"));
-
-						// Result evaluation according to Buch et al.
-						float distance_threshold = shotRadius_ * queryResolution / 2;
-						//std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, Matcher.corresp);
-						std::vector<float> euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_);
-						//pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance, Matcher.corresp);
-						pcl::Correspondences true_positives = get_true_positives(distance_threshold, euclidean_distance);
-						//print_results(true_positives, KeypointDetector, Matcher.corresp);
-						print_results(true_positives, KeypointDetector);
-						int NOF_keypoints = (KeypointDetector.targetKeypoints_.size() < KeypointDetector.queryKeypoints_.size()) ? KeypointDetector.targetKeypoints_.size() : KeypointDetector.queryKeypoints_.size();
-						//std::string results = concatenate_distances(euclidean_distance, Matcher.corresp);
-						std::string results = concatenate_distances(euclidean_distance);
-						std::string footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+						NOF_keypoints = (KeypointDetector.targetKeypoints_.size() < KeypointDetector.queryKeypoints_.size()) ? KeypointDetector.targetKeypoints_.size() : KeypointDetector.queryKeypoints_.size();
+						footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
 						FileHandler.writeToFile(results, pr_filename);
 						FileHandler.writeToFile(footer, pr_filename);
+
 						if (match_retrieval) {
-							std::string matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(corr.size()) + "\n";;
+							std::string matches;
+							if (ransac) {
+								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(corr.size()) + "\n";
+							}
+							else {
+								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";
+							}
 							FileHandler.writeToFile(matches, match_log_filename);
 						}
 						if (detection_stats) {

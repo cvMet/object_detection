@@ -6,6 +6,7 @@
 #include "config_kpd_menu.h"
 #include "config_normal_estimator_menu.h"
 #include "config_output_menu.h"
+#include "config_matcher_menu.h"
 #include "../src/objectdetection.h"
 
 class DetectionMenu : public BaseMenu
@@ -18,9 +19,10 @@ public:
             + "O - set Object\n"
             + "P - set Preprocessor mode\n"
             + "C - set deteCtion threshold\n"
-            + "N - Configure Normal estimator\n"
-            + "T - Configure KPD\n"
-            + "V - Configure output\n"
+            + "N - configure Normal estimator\n"
+            + "K - configure KPD\n"
+            + "M - configure Matcher\n"
+            + "U - configure outpUt\n"
             + "E - Execute\n"
             + "Q - Quit";
     }
@@ -56,12 +58,17 @@ public:
             set_preprocessor(get_input());
         }
         break;
-        case 'T':
+        case 'K':
         {
             aNewMenu = new ConfigKPDMenu(this);
         }
         break;
-        case 'V':
+        case 'M':
+        {
+            aNewMenu = new ConfigMatcherMenu(this);
+        }
+        break;
+        case 'U':
         {
             aNewMenu = new ConfigOutputMenu(this);
         }

@@ -30,7 +30,7 @@ public:
 		{
 			case 'C':
 			{
-				aNewMenu = new CloudCreationMenu;
+				aNewMenu = new CloudCreationMenu(this);
 			}
 			break;
 			case 'M':

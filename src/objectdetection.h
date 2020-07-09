@@ -17,12 +17,14 @@ bool toggle_cloudgen_stats(void);
 //Detection
 void add_detector_threshold(float);
 void add_detector_nn(int);
-void add_ne_scalefactor(int);
+void set_ne_scalefactor(int);
 void set_preprocessor(string);
+void set_matcher_distance_threshold(float);
+void set_detection_threshold(int);
 bool toggle_detection_stats(void);
 bool toggle_visualization(void);
-void set_detection_threshold(int);
 bool toggle_detection_logging(void);
 bool toggle_match_retrieval(void);
+bool toggle_ransac(void);
 //Learning
 void set_query_learning(void);

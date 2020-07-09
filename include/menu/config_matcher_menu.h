@@ -5,13 +5,14 @@
 #include "base_menu.h"
 #include "../src/objectdetection.h"
 
-class ConfigNEMenu : public BaseMenu
+class ConfigMatcherMenu : public BaseMenu
 {
 public:
-    ConfigNEMenu(BaseMenu* menu)
+    ConfigMatcherMenu(BaseMenu* menu)
     {
-        MenuName = std::string("Config Normal Estimator Menu");
-        m_MenuText = std::string("S - add normal estimator Scale factor (default = 5)\n")
+        MenuName = std::string("Config Matcher Menu");
+        m_MenuText = std::string("A - enable/disable RANSAC (default = true)\n")
+            + "T - set distance Threshold (default = 0.95f)\n"
             + "R - Return";
         parent = menu;
         child = true;
@@ -23,9 +24,15 @@ public:
 
         switch (choice)
         {
-        case 'S':
+        case 'A':
         {
-            set_ne_scalefactor(std::stoi(get_input()));
+            std::cout << "RANSAC state: " << std::to_string(toggle_ransac()) << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        break;
+        case 'T':
+        {
+            set_matcher_distance_threshold(std::stof(get_input().substr(0, 3)));
         }
         break;
         case 'R':

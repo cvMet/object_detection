@@ -11,7 +11,7 @@ class CloudCreationMenu : public BaseMenu
 {
 
 public:
-    CloudCreationMenu()
+    CloudCreationMenu(BaseMenu* menu)
     {
         MenuName = std::string("Cloud Creation Menu");
         m_MenuText = std::string("D - set Dataset\n")
@@ -19,7 +19,9 @@ public:
             + "F - Filter options\n"
             + "S - enable/disable Statistics\n"
             + "E - Execute\n"
-            + "Q - Quit";
+            + "R - Return";
+        parent = menu;
+        child = true;
     }
 
 
@@ -56,9 +58,9 @@ public:
             execute = true;
         }
         break;
-        case 'Q':
+        case 'R':
         {
-            quit = true;
+            aNewMenu = parent;
         }
         break;
 

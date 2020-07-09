@@ -14,8 +14,8 @@ public:
         MenuName = std::string("Output Config Menu");
         m_MenuText = std::string("S - enable/disable runtime Statistics\n")
             + "V - enable/disable Visualization\n"
-            + "L - enable/disable detection Logging\n"
-            + "M - enable/disable Match retrieval\n"
+            + "L - enable/disable detection Logging (detection state for each query-target pair)\n"
+            + "M - enable/disable Match retrieval (#matches for each query-target pair)\n"
             + "R - Return\n"
             + "E - Execute";
         parent = menu;
