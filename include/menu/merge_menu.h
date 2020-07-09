@@ -8,12 +8,14 @@
 class MergeMenu : public BaseMenu
 {
 public:
-    MergeMenu()
+    MergeMenu(BaseMenu* menu)
     {
         MenuName = std::string("Merge Menu");
         m_MenuText = std::string("V - enable/disable Visualization\n")
             + "E - Execute\n"
-            + "Q - Quit";
+            + "R - Return";
+        parent = menu;
+        child = true;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -36,9 +38,9 @@ public:
         }
         break;
 
-        case 'Q':
+        case 'R':
         {
-            quit = true;
+            aNewMenu = parent;
         }
         break;
 

@@ -35,12 +35,12 @@ public:
 			break;
 			case 'M':
 			{
-				aNewMenu = new MergeMenu;
+				aNewMenu = new MergeMenu(this);
 			}
 			break;
 			case 'D':
 			{
-				aNewMenu = new DetectionMenu;
+				aNewMenu = new DetectionMenu(this);
 			}
 			break;
 			case 'L':

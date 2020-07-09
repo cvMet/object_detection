@@ -12,7 +12,7 @@
 class DetectionMenu : public BaseMenu
 {
 public:
-    DetectionMenu()
+    DetectionMenu(BaseMenu* menu)
     {
         MenuName = std::string("Detection Menu");
         m_MenuText = std::string("D - set Dataset\n")
@@ -24,7 +24,9 @@ public:
             + "M - configure Matcher\n"
             + "U - configure outpUt\n"
             + "E - Execute\n"
-            + "Q - Quit";
+            + "R - Return";
+        parent = menu;
+        child = true;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -79,9 +81,9 @@ public:
             execute = true;
         }
         break;
-        case 'Q':
+        case 'R':
         {
-            quit = true;
+            aNewMenu = parent;
         }
         break;
         default:
