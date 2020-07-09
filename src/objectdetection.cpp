@@ -73,6 +73,7 @@ float shotRadius_ = 30;
 float fpfhRadius_ = 20;
 const int rows = 240, columns = 320;
 int detection_threshold = 0;
+int ne_scalefactor = 5;
 bool query_learning = false;
 bool cloudgen_stats = false;
 bool detection_stats = false;
@@ -668,6 +669,10 @@ void add_detector_nn(int neighbor) {
 	keypointdetector_nof_neighbors.push_back(neighbor);
 }
 
+void add_ne_scalefactor(int factor) {
+	ne_scalefactor = factor;
+}
+
 int main(int argc, char* argv[])
 {
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
@@ -1136,7 +1141,7 @@ int main(int argc, char* argv[])
 						time_meas();
 						NormalEstimator.query = query;
 						NormalEstimator.target = target;
-						NormalEstimator.calculateNormals(5 * queryResolution, 5 * targetResolution);
+						NormalEstimator.calculateNormals((ne_scalefactor * queryResolution), (ne_scalefactor * targetResolution));
 						NormalEstimator.removeNaNNormals();
 						query = NormalEstimator.query;
 						target = NormalEstimator.target;
@@ -1206,13 +1211,12 @@ int main(int argc, char* argv[])
 						//std::string results = concatenate_distances(euclidean_distance, Matcher.corresp);
 						std::string results = concatenate_distances(euclidean_distance);
 						std::string footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+						FileHandler.writeToFile(results, pr_filename);
+						FileHandler.writeToFile(footer, pr_filename);
 						if (match_retrieval) {
 							std::string matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(corr.size()) + "\n";;
 							FileHandler.writeToFile(matches, match_log_filename);
-							continue;
 						}
-						FileHandler.writeToFile(results, pr_filename);
-						FileHandler.writeToFile(footer, pr_filename);
 						if (detection_stats) {
 							std::string stats = create_writable_stats(processing_times);
 							FileHandler.writeToFile(stats, stats_filename);

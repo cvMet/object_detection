@@ -17,6 +17,7 @@ bool toggle_cloudgen_stats(void);
 //Detection
 void add_detector_threshold(float);
 void add_detector_nn(int);
+void add_ne_scalefactor(int);
 void set_preprocessor(string);
 bool toggle_detection_stats(void);
 bool toggle_visualization(void);

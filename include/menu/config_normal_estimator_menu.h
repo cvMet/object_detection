@@ -5,14 +5,13 @@
 #include "base_menu.h"
 #include "../src/objectdetection.h"
 
-class ConfigKPDMenu : public BaseMenu
+class ConfigNEMenu : public BaseMenu
 {
 public:
-    ConfigKPDMenu(BaseMenu* menu)
+    ConfigNEMenu(BaseMenu* menu)
     {
-        MenuName = std::string("Config KPD Menu");
-        m_MenuText = std::string("T - add KPD Threshold(default = 0.7)\n")
-            + "N - add KPD #Neighbors (default = 5)\n"
+        MenuName = std::string("Config Normal Estimator Menu");
+        m_MenuText = std::string("S - add normal estimator Scale factor (default = 5)\n")
             + "R - Return";
         parent = menu;
         child = true;
@@ -24,14 +23,9 @@ public:
 
         switch (choice)
         {
-        case 'T':
+        case 'S':
         {
-            add_detector_threshold(std::stof(get_input().substr(0, 3)));
-        }
-        break;
-        case 'N':
-        {
-            add_detector_nn(std::stoi(get_input()));
+            add_ne_scalefactor(std::stoi(get_input()));
         }
         break;
         case 'R':
