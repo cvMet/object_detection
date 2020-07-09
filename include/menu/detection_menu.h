@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include "base_menu.h"
+#include "config_kpd_menu.h"
 #include "../src/objectdetection.h"
 
 class DetectionMenu : public BaseMenu
@@ -15,8 +16,7 @@ public:
             + "O - set Object\n"
             + "P - set Preprocessor mode\n"
             + "C - set deteCtion threshold\n"
-            + "T - add KPD Threshold (default = 0.7)\n"
-            + "N - add KPD #Neighbors (default = 5)\n"
+            + "T - Configure KPD\n"
             + "S - enable/disable runtime Statistics\n"
             + "V - enable/disable Visualization\n"
             + "L - enable/disable detection Logging\n"
@@ -53,12 +53,7 @@ public:
         break;
         case 'T':
         {
-            add_detector_threshold(std::stof(get_input().substr(0, 3)));
-        }
-        break;
-        case 'N':
-        {
-            add_detector_nn(std::stoi(get_input()));
+            aNewMenu = new ConfigKPDMenu(this);
         }
         break;
         case 'S':
