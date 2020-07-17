@@ -63,7 +63,7 @@ std::vector<tuple<string, bool>> filter;
 std::vector<tuple<string, vector<double>>> angles;
 std::vector<float> keypointdetector_threshold = { 0.7f };
 std::vector<int> keypointdetector_nof_neighbors = { 5 };
-std::string object = "weizenbroetchen_sequence";
+std::string object = "mutter_sequence_easy_wBgr";
 std::string dataset = "object_threshold_eval";
 std::string preprocessor_mode = "3d_filtered";
 std::clock_t start, end_time;
@@ -72,6 +72,7 @@ float queryResolution, targetResolution;
 float shotRadius_ = 30;
 float fpfhRadius_ = 20;
 float matcher_distance_threshold = 0.95f;
+float background_removal_threshold = 0.005f;
 const int rows = 240, columns = 320;
 int detection_threshold = 0;
 int ne_scalefactor = 5;
@@ -81,6 +82,7 @@ bool detection_stats = false;
 bool detection_log = false;
 bool match_retrieval = false;
 bool visu = false;
+bool background_removal = false;
 bool running = false;
 bool ransac = true;
 
@@ -578,6 +580,11 @@ bool toggle_match_retrieval() {
 	return match_retrieval;
 }
 
+bool toggle_background_removal() {
+	background_removal = !background_removal;
+	return background_removal;
+}
+
 bool toggle_visualization() {
 	visu = !visu;
 	return visu;
@@ -668,6 +675,10 @@ void set_detection_threshold(int threshold) {
 	detection_threshold = threshold;
 }
 
+void set_background_removal_threshold(float threshold) {
+	background_removal_threshold = threshold;
+}
+
 void set_ne_scalefactor(int factor) {
 	ne_scalefactor = factor;
 }
@@ -693,6 +704,7 @@ int main(int argc, char* argv[])
 	execution_params.push_back(make_tuple("cloudcreation", false));
 	execution_params.push_back(make_tuple("merging", false));
 	execution_params.push_back(make_tuple("detection", false));
+	execution_params.push_back(make_tuple("processing", false));
 
 	filter.push_back(make_tuple("median", false));
 	filter.push_back(make_tuple("roi", false));
@@ -743,6 +755,11 @@ int main(int argc, char* argv[])
 	//Paths used during learning
 	string query_learning_directory = "../../../../clouds/learning";
 	vector<fs::path> query_learning_names;
+	//Paths used during processing
+	string processing_directory = "../../../../clouds/processing";
+	string processed_directory = "../../../../clouds/processing/processed";
+	vector<fs::path> processing_names;
+
 	//Clouds used during cloud generation
 	pcl::PointCloud<pcl::PointXYZ> query_cloud;
 	pcl::PointCloud<pcl::PointXYZ> background_cloud;
@@ -1118,8 +1135,12 @@ int main(int argc, char* argv[])
 				for (int query_number = 0; query_number < query_names.size(); ++query_number)
 				{
 					string query_filename = query_directory + "/" + query_names[query_number].string();
+					int name_pos_query = query_filename.find("02", 0);
+					int ext_pos_query = query_filename.find(".ply", 0);
+					std::string query_fileformat = get_fileformat(query_filename);
 					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor+ "/log.csv";
 					string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
+
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
 						vector<tuple<string, float>> processing_times, stats;
@@ -1128,23 +1149,27 @@ int main(int argc, char* argv[])
 						Descriptor Describer;
 						Matching Matcher;
 						string target_filename = target_directory + "/" + target_names[target_number].string();
-
-						int name_pos_query = query_filename.find("2", 0);
-						int ext_pos_query = query_filename.find(".ply", 0);
 						int name_pos = target_filename.find((target_names[target_number].string()), 0);
 						int extension_pos = target_filename.find(".ply", 0);
 						string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
 						string target_identifier = get_identifier(target_filename, name_pos, extension_pos);
-
 						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
 						string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-							+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";
-
-						std::string query_fileformat = get_fileformat(query_filename);
-						std::string target_fileformat = get_fileformat(target_filename);
+							+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";						
+						std::string target_fileformat = get_fileformat(target_filename);	
 						query = load_3dmodel(query_filename, query_fileformat);
-						target = load_3dmodel(target_filename, target_fileformat);
+						target = load_3dmodel(target_filename, target_fileformat);	
+						for (int p = 0; p < query.points.size(); ++p) {
+							query.points[p].x = query.points[p].x * 0.001;
+							query.points[p].y = query.points[p].y * 0.001;
+							query.points[p].z = query.points[p].z * 0.001;
+						}
+						for (int p = 0; p < target.points.size(); ++p) {
+							target.points[p].x = target.points[p].x * 0.001;
+							target.points[p].y = target.points[p].y * 0.001;
+							target.points[p].z = target.points[p].z * 0.001;
+						}
 						queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
 						targetResolution = static_cast<float> (compute_cloud_resolution(target.makeShared()));
 
@@ -1157,6 +1182,7 @@ int main(int argc, char* argv[])
 						query = NormalEstimator.query;
 						target = NormalEstimator.target;
 						processing_times.push_back(time_meas("normal estimation"));
+
 
 						//Detect keypoints
 						time_meas();
@@ -1174,6 +1200,8 @@ int main(int argc, char* argv[])
 						Describer.target_ = target;
 						Describer.calculateDescriptor(supportRadius_ * queryResolution, supportRadius_ * targetResolution);
 						processing_times.push_back(time_meas("calculating descriptor"));
+						std::cout << "query normals " << NormalEstimator.queryNormals_.size() << endl;
+						std::cout << "query pt " << query.size() << endl;
 
 						if (query_learning) {
 							vector<bshot_descriptor> descr;
@@ -1287,6 +1315,33 @@ int main(int argc, char* argv[])
 						corr.clear();
 					}
 				}
+			}
+		}
+	}
+
+	//execution_params[3] = CLOUD PROCESSING
+	if (std::get<1>(execution_params[3])) {
+		if (background_removal) {
+			get_all_file_names(processing_directory, ".ply", processing_names);
+			string background_filename = processing_directory + "/" + processing_names[0].string();
+			int name_pos = background_filename.find((processing_names[0].string()), 0);
+			int extension_pos = background_filename.find(".ply", 0);
+			string background_identifier = get_identifier(background_filename, name_pos, extension_pos);
+			std::string background_fileformat = get_fileformat(background_filename);
+			pcl::PointCloud<pcl::PointXYZ> background = load_3dmodel(background_filename, background_fileformat);
+			//Pop first element (background without query)
+			processing_names.erase(processing_names.begin());
+			for (int i = 0; i < processing_names.size(); ++i) {
+				string filename = processing_directory + "/" + processing_names[i].string();
+				int name_pos = filename.find((processing_names[i].string()), 0);
+				int extension_pos = filename.find(".ply", 0);
+				string identifier = get_identifier(filename, name_pos, extension_pos);
+				std::string fileformat = get_fileformat(filename);
+				pcl::PointCloud<pcl::PointXYZ> scene = load_3dmodel(filename, fileformat);
+				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(scene, background, background_removal_threshold);
+				filename = processed_directory + "/" + processing_names[i].string();
+				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+				pcl::io::savePLYFileASCII(substr, processed_cloud);
 			}
 		}
 	}

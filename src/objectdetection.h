@@ -28,3 +28,6 @@ bool toggle_match_retrieval(void);
 bool toggle_ransac(void);
 //Learning
 void set_query_learning(void);
+//Processing
+bool toggle_background_removal(void);
+void set_background_removal_threshold(float);

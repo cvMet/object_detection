@@ -12,7 +12,7 @@ public:
     {
         MenuName = std::string("Config Matcher Menu");
         m_MenuText = std::string("A - enable/disable RANSAC (default = true)\n")
-            + "T - set distance Threshold (default = 0.95f)\n"
+            + "T - set distance Threshold (default = 0.950f)\n"
             + "R - Return";
         parent = menu;
         child = true;
@@ -32,7 +32,7 @@ public:
         break;
         case 'T':
         {
-            set_matcher_distance_threshold(std::stof(get_input().substr(0, 3)));
+            set_matcher_distance_threshold(std::stof(get_input().substr(0, 5)));
         }
         break;
         case 'R':
