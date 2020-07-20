@@ -26,7 +26,7 @@ public:
         {
         case 'T':
         {
-            add_detector_threshold(std::stof(get_input().substr(0, 3)));
+            add_detector_threshold(std::stof(get_input().substr(0, 5)));
         }
         break;
         case 'N':

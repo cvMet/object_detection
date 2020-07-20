@@ -16,7 +16,7 @@ public:
     DetectionMenu(BaseMenu* menu)
     {
         MenuName = std::string("Detection Menu");
-        m_MenuText = std::string("C - set deteCtion threshold\n")
+        m_MenuText = std::string("T - set detection Threshold\n")
             + "I - configure Input\n"
             + "N - configure Normal estimator\n"
             + "K - configure KPD\n"
@@ -34,7 +34,7 @@ public:
 
         switch (choice)
         {
-        case 'C':
+        case 'T':
         {
             set_detection_threshold(std::stoi(get_input()));
         }

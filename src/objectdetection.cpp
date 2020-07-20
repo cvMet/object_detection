@@ -1159,7 +1159,8 @@ int main(int argc, char* argv[])
 							+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";						
 						std::string target_fileformat = get_fileformat(target_filename);	
 						query = load_3dmodel(query_filename, query_fileformat);
-						target = load_3dmodel(target_filename, target_fileformat);	
+						target = load_3dmodel(target_filename, target_fileformat);
+						// Necessary if undistorted clouds are processed (since they are in mm but pcl works on m-basis)
 						for (int p = 0; p < query.points.size(); ++p) {
 							query.points[p].x = query.points[p].x * 0.001;
 							query.points[p].y = query.points[p].y * 0.001;
