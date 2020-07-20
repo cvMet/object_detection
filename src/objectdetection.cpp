@@ -1172,7 +1172,6 @@ int main(int argc, char* argv[])
 							target.points[p].y = target.points[p].y * 0.001;
 							target.points[p].z = target.points[p].z * 0.001;
 						}
-						
 						targetResolution = static_cast<float> (compute_cloud_resolution(target.makeShared()));
 
 						//Estimate Normals
@@ -1184,7 +1183,6 @@ int main(int argc, char* argv[])
 						query = NormalEstimator.query;
 						target = NormalEstimator.target;
 						processing_times.push_back(time_meas("normal estimation"));
-
 
 						//Detect keypoints
 						time_meas();
@@ -1228,29 +1226,31 @@ int main(int argc, char* argv[])
 						std::string footer;
 
 						// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-						if (ransac) {
+						pcl::PointCloud<pcl::PointXYZ> aligned_query;
+						pcl::PointCloud<pcl::PointXYZ> aligned_keypoints;
+						if (ransac && (Matcher.corresp.size() >= RANSAC_MIN_MATCHES)) {
 							time_meas();
 							RansacRejector.setMaximumIterations(1000);
 							ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
 							Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
-							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, transformation_matrix);
-							pcl::transformPointCloud(query, query, transformation_matrix);
+							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, aligned_keypoints, transformation_matrix);
+							pcl::transformPointCloud(query, aligned_query, transformation_matrix);
 							processing_times.push_back(time_meas("Ransac Rejection"));
 							// Iterative closest Point ICP
 							time_meas();
 							Eigen::Matrix4f icp_transformation_matrix = icp(query, target);
-							pcl::transformPointCloud(query, query, icp_transformation_matrix);
-							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, icp_transformation_matrix);
+							pcl::transformPointCloud(aligned_query, aligned_query, icp_transformation_matrix);
+							pcl::transformPointCloud(aligned_keypoints, aligned_keypoints, icp_transformation_matrix);
 							processing_times.push_back(time_meas("ICP"));
 							//Eval
-							euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_);
+							euclidean_distance = calculate_euclidean_distance(aligned_keypoints, KeypointDetector.targetKeypoints_);
 							true_positives = get_true_positives(distance_threshold, euclidean_distance);
 							print_results(true_positives, KeypointDetector);
 							results = concatenate_distances(euclidean_distance);
 						}
 						else {
 							euclidean_distance = calculate_euclidean_distance(KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, Matcher.corresp);
-							std::cout << "Since RANSAC is disabled euclidean distance can not be calculated accurately -> No TP / FP data available" << endl;
+							std::cout << "RANSAC not executed: euclidean distance can not be calculated accurately -> No TP / FP data available" << endl;
 							std::cout << "# Matches: " << Matcher.corresp.size();
 							results = concatenate_distances(euclidean_distance, Matcher.corresp);
 						}
@@ -1290,8 +1290,14 @@ int main(int argc, char* argv[])
 								0, 0, 0, 1;
 							pcl::PointCloud<pcl::PointXYZ> visu_query;
 							pcl::PointCloud<pcl::PointXYZ> visu_query_keypoints;
-							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, visu_query_keypoints, t);
-							pcl::transformPointCloud(query, visu_query, t);
+							if (aligned_query.size() > 0) {
+								pcl::transformPointCloud(aligned_keypoints, visu_query_keypoints, t);
+								pcl::transformPointCloud(aligned_query, visu_query, t);
+							}
+							else {
+								pcl::transformPointCloud(KeypointDetector.queryKeypoints_, visu_query_keypoints, t);
+								pcl::transformPointCloud(query, visu_query, t);
+							}
 							//Add query keypoints to visualizer
 							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(visu_query_keypoints.makeShared(), 200, 0, 0);
 							viewer->addPointCloud<pcl::PointXYZ>(visu_query_keypoints.makeShared(), red, "sample cloud1");

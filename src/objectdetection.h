@@ -15,6 +15,7 @@ void set_object(std::string);
 bool toggle_filter(std::string);
 bool toggle_cloudgen_stats(void);
 //Detection
+#define RANSAC_MIN_MATCHES (3)
 void add_detector_threshold(float);
 void add_detector_nn(int);
 void set_ne_scalefactor(int);
