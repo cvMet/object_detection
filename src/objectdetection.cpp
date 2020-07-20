@@ -1140,6 +1140,14 @@ int main(int argc, char* argv[])
 					std::string query_fileformat = get_fileformat(query_filename);
 					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor+ "/log.csv";
 					string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
+					string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
+					query = load_3dmodel(query_filename, query_fileformat);
+					for (int p = 0; p < query.points.size(); ++p) {
+						query.points[p].x = query.points[p].x * 0.001;
+						query.points[p].y = query.points[p].y * 0.001;
+						query.points[p].z = query.points[p].z * 0.001;
+					}
+					queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
 
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
@@ -1151,27 +1159,20 @@ int main(int argc, char* argv[])
 						string target_filename = target_directory + "/" + target_names[target_number].string();
 						int name_pos = target_filename.find((target_names[target_number].string()), 0);
 						int extension_pos = target_filename.find(".ply", 0);
-						string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
 						string target_identifier = get_identifier(target_filename, name_pos, extension_pos);
 						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
 						string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";						
-						std::string target_fileformat = get_fileformat(target_filename);	
-						query = load_3dmodel(query_filename, query_fileformat);
+						std::string target_fileformat = get_fileformat(target_filename);
 						target = load_3dmodel(target_filename, target_fileformat);
 						// Necessary if undistorted clouds are processed (since they are in mm but pcl works on m-basis)
-						for (int p = 0; p < query.points.size(); ++p) {
-							query.points[p].x = query.points[p].x * 0.001;
-							query.points[p].y = query.points[p].y * 0.001;
-							query.points[p].z = query.points[p].z * 0.001;
-						}
 						for (int p = 0; p < target.points.size(); ++p) {
 							target.points[p].x = target.points[p].x * 0.001;
 							target.points[p].y = target.points[p].y * 0.001;
 							target.points[p].z = target.points[p].z * 0.001;
 						}
-						queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
+						
 						targetResolution = static_cast<float> (compute_cloud_resolution(target.makeShared()));
 
 						//Estimate Normals
@@ -1287,20 +1288,22 @@ int main(int argc, char* argv[])
 								0, 1, 0, 0,
 								0, 0, 1, 0,
 								0, 0, 0, 1;
-							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, t);
-							pcl::transformPointCloud(query, query, t);
+							pcl::PointCloud<pcl::PointXYZ> visu_query;
+							pcl::PointCloud<pcl::PointXYZ> visu_query_keypoints;
+							pcl::transformPointCloud(KeypointDetector.queryKeypoints_, visu_query_keypoints, t);
+							pcl::transformPointCloud(query, visu_query, t);
 							//Add query keypoints to visualizer
-							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(KeypointDetector.queryKeypoints_.makeShared(), 200, 0, 0);
-							viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), red, "sample cloud1");
+							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(visu_query_keypoints.makeShared(), 200, 0, 0);
+							viewer->addPointCloud<pcl::PointXYZ>(visu_query_keypoints.makeShared(), red, "sample cloud1");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
 							//add target keypoints to visualizer
 							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(KeypointDetector.targetKeypoints_.makeShared(), 0, 0, 150);
 							viewer->addPointCloud<pcl::PointXYZ>(KeypointDetector.targetKeypoints_.makeShared(), blue, "sample cloud2");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
 							//add lines between the correspondences
-							viewer->addCorrespondences<pcl::PointXYZ>(KeypointDetector.queryKeypoints_.makeShared(), KeypointDetector.targetKeypoints_.makeShared(), Matcher.corresp, "correspondences");
+							viewer->addCorrespondences<pcl::PointXYZ>(visu_query_keypoints.makeShared(), KeypointDetector.targetKeypoints_.makeShared(), Matcher.corresp, "correspondences");
 							//add query points to visualizer
-							viewer->addPointCloud<pcl::PointXYZ>(query.makeShared(), "sample cloud3");
+							viewer->addPointCloud<pcl::PointXYZ>(visu_query.makeShared(), "sample cloud3");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "sample cloud3");
 							//add target points to visualizer
