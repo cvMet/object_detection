@@ -22,6 +22,7 @@
 #include <pcl/features/fpfh_omp.h>
 #include "bshot_bits.h"
 #include "normals.h"
+#include "scene.h"
 #include "keypointdetector.h"
 
 #define isshot 1 //1 if SHOT Descriptor, 0 if FPFH
@@ -37,6 +38,7 @@ public:
 	Normals NormalEstimator;
 
 #if isshot
+	std::vector<bshot_descriptor> descriptors;
 	std::vector<bshot_descriptor> queryDescriptor_;
 	std::vector<bshot_descriptor> targetDescriptor_;
 #else
@@ -45,6 +47,19 @@ public:
 #endif
 
 	pcl::PointCloud<pcl::PointXYZ> query_, target_;
+
+
+	void calculateDescriptor(Scene scene, float support_radius) {
+		bshot bshotEstimation;
+		bshotEstimation.normals = scene.normals;
+		bshotEstimation.keypoints = scene.keypoints;
+		bshotEstimation.cloud = scene.cloud;
+
+		bshotEstimation.calculate_SHOT(support_radius);
+		bshotEstimation.compute_single_bshot();
+
+		descriptors = bshotEstimation.bshot;
+	}
 
 	void calculateDescriptor(float support_radius) {
 		bshot bshotEstimation;

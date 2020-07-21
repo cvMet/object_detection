@@ -61,6 +61,12 @@ public:
 class bshot
 {
 public :
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
+    pcl::PointCloud<pcl::Normal> normals;
+    pcl::PointCloud<pcl::PointXYZ> keypoints;
+    pcl::PointCloud<pcl::SHOT352> shot;
+    std::vector<bshot_descriptor> bshot;
+
     pcl::PointCloud<pcl::PointXYZ> cloud1, cloud2;
     pcl::PointCloud<pcl::Normal> cloud1_normals, cloud2_normals;
     pcl::PointCloud<pcl::PointXYZ> cloud1_keypoints, cloud2_keypoints;
@@ -98,15 +104,15 @@ public :
     
     void calculate_SHOT(float radius) {
         // SHOT estimation object.
-        pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot;
-        shot.setRadiusSearch(radius);
+        pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot_calculator;
+        shot_calculator.setRadiusSearch(radius);
         //shot.setNumberOfThreads(30);
         pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
-        shot.setSearchMethod(kdtree);
-        shot.setInputCloud(cloud1_keypoints.makeShared());
-        shot.setSearchSurface(cloud1.makeShared());
-        shot.setInputNormals(cloud1_normals.makeShared());
-        shot.compute(cloud1_shot);
+        shot_calculator.setSearchMethod(kdtree);
+        shot_calculator.setInputCloud(keypoints.makeShared());
+        shot_calculator.setSearchSurface(cloud);
+        shot_calculator.setInputNormals(normals.makeShared());
+        shot_calculator.compute(shot);
     }
 
     void calculate_SHOT ( float radius_model, float radius_scene )
@@ -130,7 +136,7 @@ public :
     }
 
     void compute_single_bshot() {
-        compute_bshot_from_SHOT(cloud1_shot, cloud1_bshot);
+        compute_bshot_from_SHOT(shot, bshot);
     }
 
     void compute_bshot()
