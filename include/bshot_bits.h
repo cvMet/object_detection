@@ -67,40 +67,30 @@ public :
     pcl::PointCloud<pcl::SHOT352> shot;
     std::vector<bshot_descriptor> bshot;
 
-    pcl::PointCloud<pcl::PointXYZ> cloud1, cloud2;
-    pcl::PointCloud<pcl::Normal> cloud1_normals, cloud2_normals;
-    pcl::PointCloud<pcl::PointXYZ> cloud1_keypoints, cloud2_keypoints;
-    pcl::PointCloud<pcl::SHOT352> cloud1_shot, cloud2_shot;
-    std::vector<bshot_descriptor> cloud1_bshot, cloud2_bshot;
+    //void calculate_normals ( float radius )
+    //{
+    //    // Estimate the normals.
+    //    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normalEstimation;
+    //    normalEstimation.setRadiusSearch(radius);
+    //    normalEstimation.setNumberOfThreads(12);
+    //    pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
+    //    normalEstimation.setSearchMethod(kdtree);
+    //    normalEstimation.setInputCloud(cloud1.makeShared());
+    //    normalEstimation.compute(cloud1_normals);
+    //    normalEstimation.setInputCloud(cloud2.makeShared());
+    //    normalEstimation.compute(cloud2_normals);
+    //}
 
-    void calculate_normals ( float radius )
-    {
-        // Estimate the normals.
-        pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normalEstimation;
-        normalEstimation.setRadiusSearch(radius);
-        normalEstimation.setNumberOfThreads(12);
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
-        normalEstimation.setSearchMethod(kdtree);
-
-        normalEstimation.setInputCloud(cloud1.makeShared());
-        normalEstimation.compute(cloud1_normals);
-
-        normalEstimation.setInputCloud(cloud2.makeShared());
-        normalEstimation.compute(cloud2_normals);
-    }
-
-    void  calculate_voxel_grid_keypoints ( float leaf_size )
-    {
-        // Find Keypoints on the input cloud
-        pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
-        voxel_grid.setLeafSize(leaf_size, leaf_size, leaf_size);
-
-        voxel_grid.setInputCloud(cloud1.makeShared());
-        voxel_grid.filter(cloud1_keypoints);
-
-        voxel_grid.setInputCloud(cloud2.makeShared());
-        voxel_grid.filter(cloud2_keypoints);
-    }
+    //void  calculate_voxel_grid_keypoints ( float leaf_size )
+    //{
+    //    // Find Keypoints on the input cloud
+    //    pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
+    //    voxel_grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    //    voxel_grid.setInputCloud(cloud1.makeShared());
+    //    voxel_grid.filter(cloud1_keypoints);
+    //    voxel_grid.setInputCloud(cloud2.makeShared());
+    //    voxel_grid.filter(cloud2_keypoints);
+    //}
     
     void calculate_SHOT(float radius) {
         // SHOT estimation object.
@@ -115,34 +105,8 @@ public :
         shot_calculator.compute(shot);
     }
 
-    void calculate_SHOT ( float radius_model, float radius_scene )
-    {
-        // SHOT estimation object.
-        pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot;
-        shot.setRadiusSearch(radius_model);
-        //shot.setNumberOfThreads(30);
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
-        shot.setSearchMethod(kdtree);
-
-        shot.setInputCloud(cloud1_keypoints.makeShared());
-        shot.setSearchSurface(cloud1.makeShared());
-        shot.setInputNormals(cloud1_normals.makeShared());
-        shot.compute(cloud1_shot);
-		shot.setRadiusSearch(radius_scene);
-        shot.setInputCloud(cloud2_keypoints.makeShared());
-        shot.setSearchSurface(cloud2.makeShared());
-        shot.setInputNormals(cloud2_normals.makeShared());
-        shot.compute(cloud2_shot);
-    }
-
     void compute_single_bshot() {
         compute_bshot_from_SHOT(shot, bshot);
-    }
-
-    void compute_bshot()
-    {
-        compute_bshot_from_SHOT( cloud1_shot, cloud1_bshot);
-        compute_bshot_from_SHOT( cloud2_shot, cloud2_bshot);
     }
 
     void compute_bshot_from_SHOT(pcl::PointCloud<pcl::SHOT352>& shot_descriptors_here, std::vector<bshot_descriptor>& bshot_descriptors)

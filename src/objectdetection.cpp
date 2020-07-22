@@ -320,23 +320,6 @@ std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 
 }
 
-std::vector<tuple<string, float>> assemble_stats(vector<tuple<string, float>> processing_times, pcl::PointCloud<PointType> query, pcl::PointCloud<PointType> target, float queryResolution, float targetResolution, KeypointDetector& Detector) {
-	vector<tuple<string, float>> stats;
-
-	stats.push_back(make_tuple("suport_radius", float(supportRadius_)));
-	stats.push_back(make_tuple("points_query_cloud", float(query.points.size())));
-	stats.push_back(make_tuple("points_target_cloud", float(target.points.size())));
-	stats.push_back(make_tuple("query_resolution", float(queryResolution)));
-	stats.push_back(make_tuple("target_resolution", float(targetResolution)));
-	stats.push_back(make_tuple("query_keypoints", float(Detector.queryKeypoints_.size())));
-	stats.push_back(make_tuple("target_keypoints", float(Detector.targetKeypoints_.size())));
-
-	for (int i = 0; i < processing_times.size(); ++i) {
-		stats.push_back(processing_times[i]);
-	}
-	return stats;
-}
-
 std::tuple<string, float> time_meas(string action) {
 	double cpuTimeUsed;
 	if (!running) {
@@ -350,22 +333,6 @@ std::tuple<string, float> time_meas(string action) {
 		std::cout << "Time taken for: " + action + " " << (double)cpuTimeUsed << std::endl;
 	}
 	return make_tuple(action, cpuTimeUsed);
-}
-
-std::string concatenate_results(KeypointDetector& Detector, std::vector<float>& euclidean_distance, const float& distance_threshold) {
-	std::string data = "";
-	if (Detector.targetKeypoints_.size() < Detector.queryKeypoints_.size()) {
-		data = std::to_string(Detector.targetKeypoints_.size()) + "," + std::to_string(distance_threshold) + "\n";
-	}
-	else {
-		data = std::to_string(Detector.queryKeypoints_.size()) + "," + std::to_string(distance_threshold) + "\n";
-	}
-	for (int i = 0; i < corr.size(); ++i)
-	{
-		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
-		data += "\n";
-	}
-	return data;
 }
 
 std::string create_writable_stats(vector<tuple<string, float>> stats) {
@@ -622,19 +589,9 @@ void time_meas() {
 	}
 }
 
-void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector) {
-	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
-	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(detector.queryKeypoints_.size()) << endl;
-};
-
 void print_results(pcl::Correspondences& true_positives, pcl::PointCloud<PointXYZ> queryKeypoints_) {
 	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
 	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(queryKeypoints_.size()) << endl;
-};
-
-void print_results(pcl::Correspondences& true_positives, KeypointDetector& detector, pcl::Correspondences& corresp) {
-	std::cout << "TP: " << true_positives.size() << ", FP: " << corresp.size() - true_positives.size() << endl;
-	std::cout << "Precision: " << (float)true_positives.size() / (float)corresp.size() << " Recall: " << true_positives.size() / (float)(detector.queryKeypoints_.size()) << endl;
 };
 
 void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path>& ret)

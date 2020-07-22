@@ -34,22 +34,18 @@ typedef pcl::Normal NormalType;
 class Descriptor
 {
 public:
-	KeypointDetector KeypointDetector;
-	Normals NormalEstimator;
 
 #if isshot
 	std::vector<bshot_descriptor> descriptors;
-	std::vector<bshot_descriptor> queryDescriptor_;
-	std::vector<bshot_descriptor> targetDescriptor_;
 #else
 	pcl::PointCloud<pcl::FPFHSignature33> modelDescriptor_;
 	pcl::PointCloud<pcl::FPFHSignature33> sceneDescriptor_;
 #endif
 
-	pcl::PointCloud<pcl::PointXYZ> query_, target_;
 
 
 	void calculateDescriptor(Scene scene, float support_radius) {
+#if isshot
 		bshot bshotEstimation;
 		bshotEstimation.normals = scene.normals;
 		bshotEstimation.keypoints = scene.keypoints;
@@ -59,36 +55,7 @@ public:
 		bshotEstimation.compute_single_bshot();
 
 		descriptors = bshotEstimation.bshot;
-	}
 
-	void calculateDescriptor(float support_radius) {
-		bshot bshotEstimation;
-		bshotEstimation.cloud1_normals = NormalEstimator.queryNormals_;
-		bshotEstimation.cloud1_keypoints = KeypointDetector.queryKeypoints_;
-		bshotEstimation.cloud1 = query_;
-		
-		bshotEstimation.calculate_SHOT(support_radius);
-		bshotEstimation.compute_single_bshot();
-
-		queryDescriptor_ = bshotEstimation.cloud1_bshot;
-	}
-	
-	void calculateDescriptor(float modelSupportradius, float sceneSupportradius) {
-#if isshot
-
-		bshot bshotEstimation;
-		bshotEstimation.cloud1_normals = NormalEstimator.queryNormals_;
-		bshotEstimation.cloud2_normals = NormalEstimator.targetNormals_;
-		bshotEstimation.cloud1_keypoints = KeypointDetector.queryKeypoints_;
-		bshotEstimation.cloud2_keypoints = KeypointDetector.targetKeypoints_;
-		bshotEstimation.cloud1 = query_;
-		bshotEstimation.cloud2 = target_;
-
-		bshotEstimation.calculate_SHOT(modelSupportradius, sceneSupportradius);
-		bshotEstimation.compute_bshot();
-
-		queryDescriptor_ = bshotEstimation.cloud1_bshot;
-		targetDescriptor_ = bshotEstimation.cloud2_bshot;
 #else 
 		pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfhEstimation;
 
@@ -108,6 +75,7 @@ public:
 		fpfhEstimation.compute(sceneDescriptor_);
 #endif
 	}
+
 
 };
 #endif
