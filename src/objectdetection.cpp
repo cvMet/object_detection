@@ -35,6 +35,7 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include "../include/menu/detection_menu.h"
 #include "../include/menu/filter_menu.h"
 #include "../include/menu/merge_menu.h"
+#include "../include/registrator.h"
 #include "objectdetection.h"
 
 //Namespaces
@@ -123,11 +124,7 @@ Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::Corresponden
 }
 
 Eigen::Matrix4f icp(pcl::PointCloud<PointType> query, pcl::PointCloud<PointType> target) {
-	Eigen::Matrix4f mat, guess;
-	guess << -1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, -1, 0,
-		0, 0, 0, 1;
+	Eigen::Matrix4f mat;
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 	icp.setInputSource(query.makeShared());
 	icp.setInputTarget(target.makeShared());
@@ -936,55 +933,29 @@ int main(int argc, char* argv[])
 						Matcher.calculateCorrespondences(matcher_distance_threshold, true);
 						processing_times.push_back(time_meas("matching"));
 
-						// Output Preparation --> either with or without RANSAC
-						float distance_threshold = shotRadius_ * Query.resolution / 2;
-						std::vector<float> euclidean_distance;
-						pcl::Correspondences true_positives;
-						int NOF_keypoints = 0;
-						std::string results;
-						std::string footer;
+						// Registration -> Output Preparation
+						Registrator Registrator(Query, Target, Matcher.corresp);
+						Registrator.set_distance_threshold(supportRadius_ * Query.resolution / 2);
+						Registrator.init_RANSAC();
+						Registrator.do_ransac();
+						Registrator.do_icp();
+						Registrator.calculate_euclidean_distances();
+						Registrator.calculate_true_positives();
+						Registrator.print_precision_recall();
+						Registrator.concatenate_NNDR_and_euclidean_distance();
+						std::string match_distances = Registrator.get_NNDR_euclidean_pair();
+						Registrator.create_footer();
+						std::string footer = Registrator.get_footer();
 
-						// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-						pcl::PointCloud<pcl::PointXYZ> aligned_query;
-						pcl::PointCloud<pcl::PointXYZ> aligned_keypoints;
-						if (ransac && (Matcher.corresp.size() >= RANSAC_MIN_MATCHES)) {
-							time_meas();
-							RansacRejector.setMaximumIterations(1000);
-							ransac_rejection(Matcher.corresp, Query.keypoints, Target.keypoints, RansacRejector);
-							Eigen::Matrix4f transformation_matrix = get_ransac_transformation_matrix(RansacRejector);
-							pcl::transformPointCloud(Query.keypoints, aligned_keypoints, transformation_matrix);
-							pcl::transformPointCloud(*Query.cloud, aligned_query, transformation_matrix);
-							processing_times.push_back(time_meas("Ransac Rejection"));
-							// Iterative closest Point ICP
-							time_meas();
-							Eigen::Matrix4f icp_transformation_matrix = icp(aligned_query, *Target.cloud);
-							pcl::transformPointCloud(aligned_query, aligned_query, icp_transformation_matrix);
-							pcl::transformPointCloud(aligned_keypoints, aligned_keypoints, icp_transformation_matrix);
-							processing_times.push_back(time_meas("ICP"));
-							//Eval
-							euclidean_distance = calculate_euclidean_distance(aligned_keypoints, Target.keypoints);
-							true_positives = get_true_positives(distance_threshold, euclidean_distance);
-							print_results(true_positives, Query.keypoints);
-							results = concatenate_distances(euclidean_distance);
-						}
-						else {
-							euclidean_distance = calculate_euclidean_distance(Query.keypoints, Target.keypoints, Matcher.corresp);
-							std::cout << "RANSAC not executed: euclidean distance can not be calculated accurately -> No TP / FP data available" << endl;
-							std::cout << "# Matches: " << Matcher.corresp.size();
-							results = concatenate_distances(euclidean_distance, Matcher.corresp);
-						}
-
-						NOF_keypoints = (Target.keypoints.size() < Query.keypoints.size()) ? Target.keypoints.size() : Query.keypoints.size();
-						footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
 						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
-						FileHandler.writeToFile(results, pr_filename);
+						FileHandler.writeToFile(match_distances, pr_filename);
 						FileHandler.writeToFile(footer, pr_filename);
 
 						if (match_retrieval) {
 							std::string matches;
 							if (ransac) {
-								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(corr.size()) + "\n";
+								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Registrator.get_number_of_matches()) + "\n";
 							}
 							else {
 								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";
@@ -998,7 +969,7 @@ int main(int argc, char* argv[])
 							FileHandler.writeToFile(stats, stats_filename);
 						}
 						if (detection_log) {
-							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((true_positives.size() >= detection_threshold)) + "\n";
+							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((Registrator.get_number_of_tp() >= detection_threshold)) + "\n";
 							FileHandler.writeToFile(log, log_filename);
 						}
 						if (visu) {
@@ -1013,9 +984,9 @@ int main(int argc, char* argv[])
 								0, 0, 0, 1;
 							pcl::PointCloud<pcl::PointXYZ> visu_query;
 							pcl::PointCloud<pcl::PointXYZ> visu_query_keypoints;
-							if (aligned_query.size() > 0) {
-								pcl::transformPointCloud(aligned_keypoints, visu_query_keypoints, t);
-								pcl::transformPointCloud(aligned_query, visu_query, t);
+							if (Registrator.is_query_aligned()) {
+								pcl::transformPointCloud(*Registrator.get_icp_aligned_keypoints(), visu_query_keypoints, t);
+								pcl::transformPointCloud(*Registrator.get_icp_aligned_cloud(), visu_query, t);
 							}
 							else {
 								pcl::transformPointCloud(Query.keypoints, visu_query_keypoints, t);
