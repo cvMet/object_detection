@@ -977,7 +977,7 @@ int main(int argc, char* argv[])
 		{
 			std::cout << "Error loading origin cloud." << std::endl;
 		}
-		float origin_res = static_cast<float> (compute_cloud_resolution(origin_cloud));
+		float queryResolution = static_cast<float> (compute_cloud_resolution(origin_cloud));
 
 		//Load all permutation clouds into vector
 		get_all_file_names(permutation_directory, ".ply", permutation_names);
@@ -998,76 +998,57 @@ int main(int argc, char* argv[])
 			Matching Matcher;
 			pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			float permutation_res = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
+			float targetResolution = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
+
+			Scene Query("query", origin_cloud);
+			Scene Target("target", clouds[cloud]);
 
 			//Estimate Normals
-			NormalEstimator.query = *origin_cloud;
-			NormalEstimator.target = *clouds[cloud];
-			NormalEstimator.calculateNormals(5 * origin_res, 5 * permutation_res);
-			NormalEstimator.removeNaNNormals();
-			*origin_cloud = NormalEstimator.query;
-			*clouds[cloud] = NormalEstimator.target;
+			NormalEstimator.set_scalefactor(ne_scalefactor);
+			NormalEstimator.calculateNormals(queryResolution, Query.cloud);
+			NormalEstimator.removeNaNNormals(Query.cloud);
+			Query.normals = NormalEstimator.normals;
+
+			NormalEstimator.calculateNormals(targetResolution, Target.cloud);
+			NormalEstimator.removeNaNNormals(Target.cloud);
+			Target.normals = NormalEstimator.normals;
 
 			//Detect keypoints
-			time_meas();
-			KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, *origin_cloud, NormalEstimator.queryNormals_, origin_res, 0.7f, 5);
-			KeypointDetector.calculateIssKeypoints(KeypointDetector.targetKeypoints_, *clouds[cloud], NormalEstimator.targetNormals_, permutation_res, 0.7f, 5);
+			KeypointDetector.set_threshold(0.7f);
+			KeypointDetector.set_neighbor_count(5);
+			KeypointDetector.calculateIssKeypoints(Query, queryResolution);
+			Query.keypoints = KeypointDetector.keypoints;
+			KeypointDetector.calculateIssKeypoints(Target, targetResolution);
+			Target.keypoints = KeypointDetector.keypoints;
 
 			//Calculate descriptor for each keypoint
-			time_meas();
-			Describer.NormalEstimator = NormalEstimator;
-			Describer.KeypointDetector = KeypointDetector;
-			Describer.query_ = *origin_cloud;
-			Describer.target_ = *clouds[cloud];
-			Describer.calculateDescriptor(30 * origin_res, 30 * permutation_res);
+			Describer.calculateDescriptor(Query, supportRadius_* queryResolution);
+			Query.descriptors = Describer.descriptors;
+			Describer.calculateDescriptor(Target, supportRadius_* targetResolution);
+			Target.descriptors = Describer.descriptors;
 
 			//Matching
-			float c_threshold = 1.0f;
-			Matcher.desc = Describer;
-			Matcher.calculateCorrespondences(c_threshold);
+			Matcher.queryDescriptor_ = Query.descriptors;
+			Matcher.targetDescriptor_ = Target.descriptors;
+			Matcher.calculateCorrespondences(matcher_distance_threshold, true);
 
 			// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
 			RansacRejector.setMaximumIterations(1000);
-			ransac_rejection(Matcher.corresp, KeypointDetector.queryKeypoints_, KeypointDetector.targetKeypoints_, RansacRejector);
+			ransac_rejection(Matcher.corresp, Query.keypoints, Target.keypoints, RansacRejector);
 			Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
-			pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
-			pcl::transformPointCloud(*origin_cloud, *temp_cloud, ransac_transformation);
+			//pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
+			pcl::transformPointCloud(*Query.cloud, *temp_cloud, ransac_transformation);
 
 			pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 			icp.setMaximumIterations(30);
 			icp.setRANSACOutlierRejectionThreshold(0.005);
 			icp.setTransformationEpsilon(1e-9);
 			icp.setInputSource(temp_cloud);
-			icp.setInputTarget(clouds[cloud]);
+			icp.setInputTarget(Target.cloud);
 			icp.align(*aligned_cloud);
 			Eigen::Matrix4f icp_transformation;
 			icp_transformation = icp.getFinalTransformation();
 			std::cout << icp_transformation << std::endl;
-
-			//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-			//viewer->setBackgroundColor(0, 0, 0);
-			//viewer->initCameraParameters();
-			////Add origin points to visualizer
-			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(origin_cloud, 0, 0, 200);
-			//viewer->addPointCloud<pcl::PointXYZ>(origin_cloud, blue, "sample cloud1");
-			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
-			////add unaligned points to visualizer
-			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[cloud], 200, 0, 0);
-			//viewer->addPointCloud<pcl::PointXYZ>(clouds[cloud], red, "sample cloud2");
-			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
-			////add points after ransac to visualizer
-			//viewer->addPointCloud<pcl::PointXYZ>(temp_cloud, "sample cloud3");
-			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
-			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
-			////add icp aligned points
-			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> icpc(aligned_cloud, 226, 176, 7);
-			//viewer->addPointCloud<pcl::PointXYZ>(aligned_cloud, icpc, "icp cloud");
-			//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "icp cloud");
-			//while (!viewer->wasStopped())
-			//{
-			//	viewer->spinOnce(100);
-			//	std::this_thread::sleep_for(100ms);
-			//}
 
 			//Add inverse of transformation matrices to corresponding vector to enable target-to-source transformation
 			transformation_matrices.push_back(make_tuple(ransac_transformation.inverse(), icp_transformation.inverse()));
