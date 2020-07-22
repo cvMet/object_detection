@@ -76,15 +76,35 @@ float background_removal_threshold = 0.005f;
 const int rows = 240, columns = 320;
 int detection_threshold = 0;
 int ne_scalefactor = 5;
+bool background_removal = false;
+bool detection_stats = false;
+bool match_retrieval = false;
 bool query_learning = false;
 bool cloudgen_stats = false;
-bool detection_stats = false;
 bool detection_log = false;
-bool match_retrieval = false;
-bool visu = false;
-bool background_removal = false;
 bool running = false;
 bool ransac = true;
+bool visu = false;
+
+//Paths used during objectdetection
+string query_directory = "../../../../clouds/query_clouds";
+string target_directory = "../../../../clouds/target_clouds";
+string pr_root = "../../../../PR/Buch";
+string stats_root = "../../../../stats";
+vector<fs::path> query_names;
+vector<fs::path> target_names;
+//Paths used during merging
+string origin_directory = "../../../../clouds/merging/origin";
+string permutation_directory = "../../../../clouds/merging/permutation";
+vector<fs::path> origin_names;
+vector<fs::path> permutation_names;
+//Paths used during learning
+string query_learning_directory = "../../../../clouds/learning";
+vector<fs::path> query_learning_names;
+//Paths used during processing
+string processing_directory = "../../../../clouds/processing";
+string processed_directory = "../../../../clouds/processing/processed";
+vector<fs::path> processing_names;
 
 #if isshot
 const float supportRadius_ = shotRadius_;
@@ -610,140 +630,21 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//Paths used during cloudgen
-	string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
-	string depth_extension = ".txt";
-	string cloud_directory = "../../../../clouds/" + dataset + "/" + object;
-	vector<fs::path> depth_names;
-	vector<fs::path> cloud_names;
-	//Paths used during objectdetection
-	string query_directory = "../../../../clouds/query_clouds";
-	string target_directory = "../../../../clouds/target_clouds";
-	string pr_root = "../../../../PR/Buch";
-	string stats_root = "../../../../stats";
-	vector<fs::path> query_names;
-	vector<fs::path> target_names;
-	//Paths used during merging
-	string origin_directory = "../../../../clouds/merging/origin";
-	string permutation_directory = "../../../../clouds/merging/permutation";
-	vector<fs::path> origin_names;
-	vector<fs::path> permutation_names;
-	//Paths used during learning
-	string query_learning_directory = "../../../../clouds/learning";
-	vector<fs::path> query_learning_names;
-	//Paths used during processing
-	string processing_directory = "../../../../clouds/processing";
-	string processed_directory = "../../../../clouds/processing/processed";
-	vector<fs::path> processing_names;
-
-	//Clouds used during cloud generation
-	pcl::PointCloud<pcl::PointXYZ> query_cloud;
-	pcl::PointCloud<pcl::PointXYZ> background_cloud;
-	pcl::PointCloud<pcl::PointXYZ> filtered_query;
-	pcl::PointCloud<pcl::PointXYZ> filtered_background;
-	pcl::PointCloud<pcl::PointXYZ> final_cloud;
-	pcl::PointCloud<pcl::PointXYZ> roi_cloud;
-	pcl::PointCloud<pcl::PointXYZ> temp_cloud;
-	//Clouds used during objectdetection
-	pcl::PointCloud<pcl::PointXYZ>::Ptr query(new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr target(new pcl::PointCloud<pcl::PointXYZ>);
-
-	//Unordered filtering playground
-#if 0
-	pcl::PointCloud<pcl::PointXYZ>::Ptr unordered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	if (pcl::io::loadPLYFile("../../../../clouds/mastercloud/mastercloud.ply", *unordered_cloud) == -1)
-	{
-		std::cout << "Error loading initial master cloud." << std::endl;
-	}
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
-	tree->setInputCloud(unordered_cloud);
-	vector<vector<int>> neighbor_indices;
-	vector<vector<float>> neighbor_distances;
-	for (int point = 0; point < unordered_cloud->points.size(); ++point) {
-		vector<int> neighbors;
-		vector<float> distances;
-		pcl::PointXYZ query_point = unordered_cloud->at(point);
-		//Radius based search
-#if 0
-		tree->radiusSearch(query_point, 0.005f, neighbors, distances);
-#endif
-		//NN based search
-#if 1
-		tree->nearestKSearch(query_point, 10, neighbors, distances);
-#endif
-		neighbor_indices.push_back(neighbors);
-		neighbor_distances.push_back(distances);
-	}
-	pcl::PointXYZ filtered_point;
-	vector<int> max_points_to_process = { 3,5,10,100 };
-
-	//MEAN FILTERING
-#if 0
-	for (int point = 0; point < neighbor_indices.size(); ++point) {
-		if (neighbor_indices[point].size() < max_points_to_process) {
-			for (int i = 0; i < neighbor_indices[point].size(); ++i) {
-				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
-				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
-				filtered_point.z += unordered_cloud->at(neighbor_indices[point][i]).z;
-			}
-			filtered_point.x = filtered_point.x / neighbor_indices[point].size();
-			filtered_point.y = filtered_point.y / neighbor_indices[point].size();
-			filtered_point.z = filtered_point.z / neighbor_indices[point].size();
-		}
-		else {
-			for (int i = 0; i < max_points_to_process; ++i) {
-				filtered_point.x += unordered_cloud->at(neighbor_indices[point][i]).x;
-				filtered_point.y += unordered_cloud->at(neighbor_indices[point][i]).y;
-				filtered_point.z += unordered_cloud->at(neighbor_indices[point][i]).z;
-			}
-			filtered_point.x = filtered_point.x / max_points_to_process;
-			filtered_point.y = filtered_point.y / max_points_to_process;
-			filtered_point.z = filtered_point.z / max_points_to_process;
-		}
-		filtered->points.push_back(filtered_point);
-	}
-#endif
-
-	//MEDIAN FILTERING
-#if 1
-	for (int max = 0; max < max_points_to_process.size(); ++max) {
-		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
-		for (int point = 0; point < neighbor_indices.size(); ++point) {
-			vector<float> x_values;
-			vector<float> y_values;
-			vector<float> z_values;
-			//Case # neighbors found is less than the number passed in search call 
-			if (neighbor_indices[point].size() < max_points_to_process[max]) {
-				for (int i = 0; i < neighbor_indices[point].size(); ++i) {
-					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
-					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
-					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
-				}
-				filtered_point.x = get_median(x_values);
-				filtered_point.y = get_median(y_values);
-				filtered_point.z = get_median(z_values);
-			}
-			//Case # neighbors found = number passed in search call 
-			else {
-				for (int i = 0; i < max_points_to_process[max]; ++i) {
-					x_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).x);
-					y_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).y);
-					z_values.push_back(unordered_cloud->at(neighbor_indices[point][i]).z);
-				}
-				filtered_point.x = get_median(x_values);
-				filtered_point.y = get_median(y_values);
-				filtered_point.z = get_median(z_values);
-			}
-			filtered->points.push_back(filtered_point);
-		}
-		string filename = "../../../../clouds/mastercloud/mastercloud_median_NN" + to_string(max_points_to_process[max]) + ".ply";
-		pcl::io::savePLYFileASCII(filename, *filtered);
-	}
-#endif
-#endif
-
 	//execution_params[0] = CLOUDCREATION
 	if (std::get<1>(execution_params[0])) {
+		//Paths used during cloudgen
+		string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
+		string depth_extension = ".txt";
+		string cloud_directory = "../../../../clouds/" + dataset + "/" + object;
+		vector<fs::path> depth_names;
+		vector<fs::path> cloud_names;
+		//Clouds used during cloud generation
+		pcl::PointCloud<pcl::PointXYZ> query_cloud;
+		pcl::PointCloud<pcl::PointXYZ> background_cloud;
+		pcl::PointCloud<pcl::PointXYZ> filtered_query;
+		pcl::PointCloud<pcl::PointXYZ> filtered_background;
+		pcl::PointCloud<pcl::PointXYZ> final_cloud;
+
 		FileHandler.get_all_file_names(depth_directory, depth_extension, depth_names);
 		std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
@@ -784,10 +685,10 @@ int main(int argc, char* argv[])
 			}
 			string filename = cloud_directory + "/" + depth_names[i].string();
 			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
-			string statistics = create_writable_stats(creation_stats);
-			string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 			pcl::io::savePLYFileASCII(substr, final_cloud);
 			if (cloudgen_stats) {
+				string statistics = create_writable_stats(creation_stats);
+				string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 				FileHandler.writeToFile(statistics, stats_filename);
 			}
 		}
@@ -803,10 +704,7 @@ int main(int argc, char* argv[])
 		//Load origin cloud
 		FileHandler.get_all_file_names(origin_directory, ".ply", origin_names);
 		string origin_filename = origin_directory + "/" + origin_names[0].string();
-		if (pcl::io::loadPLYFile(origin_filename, *origin_cloud) == -1)
-		{
-			std::cout << "Error loading origin cloud." << std::endl;
-		}
+		FileHandler.load_ply_file(origin_filename, origin_cloud);
 		float queryResolution = CloudCreator.compute_cloud_resolution(origin_cloud);
 
 		//Load all permutation clouds into vector
@@ -814,10 +712,7 @@ int main(int argc, char* argv[])
 		for (int cloud = 0; cloud < permutation_names.size(); ++cloud) {
 			pcl::PointCloud<pcl::PointXYZ>::Ptr permutation_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			string cloud_filename = permutation_directory + "/" + permutation_names[cloud].string();
-			if (pcl::io::loadPLYFile(cloud_filename, *permutation_cloud) == -1)
-			{
-				std::cout << "Error loading permutation cloud." << std::endl;
-			}
+			FileHandler.load_ply_file(cloud_filename, permutation_cloud);
 			clouds.push_back(permutation_cloud);
 		}
 
@@ -854,9 +749,9 @@ int main(int argc, char* argv[])
 			Target.keypoints = KeypointDetector.keypoints;
 
 			//Calculate descriptor for each keypoint
-			Describer.calculateDescriptor(Query, supportRadius_);
+			Describer.calculateDescriptor(Query);
 			Query.descriptors = Describer.descriptors;
-			Describer.calculateDescriptor(Target, supportRadius_);
+			Describer.calculateDescriptor(Target);
 			Target.descriptors = Describer.descriptors;
 
 			//Matching
@@ -868,7 +763,6 @@ int main(int argc, char* argv[])
 			RansacRejector.setMaximumIterations(1000);
 			ransac_rejection(Matcher.corresp, Query.keypoints, Target.keypoints, RansacRejector);
 			Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
-			//pcl::transformPointCloud(KeypointDetector.queryKeypoints_, KeypointDetector.queryKeypoints_, ransac_transformation);
 			pcl::transformPointCloud(*Query.cloud, *temp_cloud, ransac_transformation);
 
 			pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -944,6 +838,9 @@ int main(int argc, char* argv[])
 
 	//execution_params[2] = OBJECT DETECTION
 	if (std::get<1>(execution_params[2])) {
+		//Clouds used during objectdetection
+		pcl::PointCloud<pcl::PointXYZ>::Ptr query(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr target(new pcl::PointCloud<pcl::PointXYZ>);
 		FileHandler.get_all_file_names(query_directory, ".ply", query_names);
 		FileHandler.get_all_file_names(target_directory, ".ply", target_names);
 
@@ -977,13 +874,14 @@ int main(int argc, char* argv[])
 					QueryNormalEstimator.calculateNormals(Query.resolution, Query.cloud);
 					QueryNormalEstimator.removeNaNNormals(Query.cloud);
 					Query.normals = QueryNormalEstimator.normals;
-					//Query KPD
+					//Query Keypoint Detection
 					QueryKeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
 					QueryKeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
 					QueryKeypointDetector.calculateIssKeypoints(Query);
 					Query.keypoints = QueryKeypointDetector.keypoints;
 					//Query Description
-					QueryDescriber.calculateDescriptor(Query, supportRadius_);
+					QueryDescriber.set_support_radius(supportRadius_);
+					QueryDescriber.calculateDescriptor(Query);
 					Query.descriptors = QueryDescriber.descriptors;
 
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
@@ -1009,17 +907,14 @@ int main(int argc, char* argv[])
 						}
 						Target.resolution = CloudCreator.compute_cloud_resolution(Target.cloud);
 
-						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";				
-
-						//Estimate Normals
+						//Target Normal Estimation
 						time_meas();
 						NormalEstimator.calculateNormals(Target.resolution, Target.cloud);
 						NormalEstimator.removeNaNNormals(Target.cloud);
 						Target.normals = NormalEstimator.normals;
 						processing_times.push_back(time_meas("normal estimation"));
 
-						////Detect keypoints
+						//Target Keypoint Detection
 						time_meas();
 						KeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
 						KeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
@@ -1027,9 +922,10 @@ int main(int argc, char* argv[])
 						Target.keypoints = KeypointDetector.keypoints;
 						processing_times.push_back(time_meas("detecting keypoints"));
 
-						//Calculate descriptor for each keypoint
+						//Target Description
 						time_meas();
-						Describer.calculateDescriptor(Target, supportRadius_);
+						Describer.set_support_radius(supportRadius_);
+						Describer.calculateDescriptor(Target);
 						Target.descriptors = Describer.descriptors;
 						processing_times.push_back(time_meas("calculating descriptor"));
 
@@ -1080,6 +976,8 @@ int main(int argc, char* argv[])
 
 						NOF_keypoints = (Target.keypoints.size() < Query.keypoints.size()) ? Target.keypoints.size() : Query.keypoints.size();
 						footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
+						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
 						FileHandler.writeToFile(results, pr_filename);
 						FileHandler.writeToFile(footer, pr_filename);
 
@@ -1181,43 +1079,5 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//Enable if manual transformation matrix construction is desired
-#if 0
-
-	Eigen::Matrix3f	temp, Rx, Ry, Rz;
-	Eigen::Matrix4f T;
-	Eigen::Vector4f vec;
-	vec << 0, 0, 0, 1;
-
-	float psi = 0;
-	float theta = 0;
-	float phi = 0.262;
-
-	Rz << cos(psi), -sin(psi), 0,
-		sin(psi), cos(psi), 0,
-		0, 0, 1;
-	Ry << cos(theta), 0, sin(theta),
-		0, 1, 0,
-		-sin(theta), 0, cos(theta);
-	Rx << 1, 0, 0,
-		0, cos(phi), -sin(phi),
-		0, sin(phi), cos(phi);
-
-	temp = Rz * Ry * Rx;
-	for (int i = 0; i < temp.rows(); ++i) {
-		for (int j = 0; j < temp.cols(); ++j) {
-			T(i, j) = temp(i, j);
-		}
-	}
-	for (int i = 0; i < temp.rows(); ++i) {
-		T(i, 3) = 0;
-		T(3, i) = 0;
-	}
-	T(3, 3) = 1;
-	std::cout << "temp: " << temp << endl;
-	std::cout << "T: " << T << endl;
-
-	pcl::transformPointCloud(query, query, T);
-#endif
 	return 0;
 }

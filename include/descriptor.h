@@ -33,7 +33,12 @@ typedef pcl::Normal NormalType;
 
 class Descriptor
 {
+private:
+	int support_radius = 30;
 public:
+	void set_support_radius(int value) {
+		support_radius = value;
+	}
 
 #if isshot
 	std::vector<bshot_descriptor> descriptors;
@@ -44,15 +49,15 @@ public:
 
 
 
-	void calculateDescriptor(Scene scene, float support_radius) {
+	void calculateDescriptor(Scene scene) {
 #if isshot
 		bshot bshotEstimation;
 		bshotEstimation.normals = scene.normals;
 		bshotEstimation.keypoints = scene.keypoints;
 		bshotEstimation.cloud = scene.cloud;
 
-		bshotEstimation.calculate_SHOT(support_radius*scene.resolution);
-		bshotEstimation.compute_single_bshot();
+		bshotEstimation.calculate_SHOT(float(support_radius*scene.resolution));
+		bshotEstimation.compute_bshot();
 
 		descriptors = bshotEstimation.bshot;
 

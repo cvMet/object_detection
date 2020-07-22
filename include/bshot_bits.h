@@ -67,20 +67,6 @@ public :
     pcl::PointCloud<pcl::SHOT352> shot;
     std::vector<bshot_descriptor> bshot;
 
-    //void calculate_normals ( float radius )
-    //{
-    //    // Estimate the normals.
-    //    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normalEstimation;
-    //    normalEstimation.setRadiusSearch(radius);
-    //    normalEstimation.setNumberOfThreads(12);
-    //    pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
-    //    normalEstimation.setSearchMethod(kdtree);
-    //    normalEstimation.setInputCloud(cloud1.makeShared());
-    //    normalEstimation.compute(cloud1_normals);
-    //    normalEstimation.setInputCloud(cloud2.makeShared());
-    //    normalEstimation.compute(cloud2_normals);
-    //}
-
     //void  calculate_voxel_grid_keypoints ( float leaf_size )
     //{
     //    // Find Keypoints on the input cloud
@@ -105,7 +91,7 @@ public :
         shot_calculator.compute(shot);
     }
 
-    void compute_single_bshot() {
+    void compute_bshot() {
         compute_bshot_from_SHOT(shot, bshot);
     }
 
