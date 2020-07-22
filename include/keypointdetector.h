@@ -36,12 +36,12 @@ public:
 	//	voxelgrid.filter(targetKeypoints_);
 	//}
 
-	void calculateIssKeypoints(Scene scene, float resolution) {
+	void calculateIssKeypoints(Scene scene) {
 		//pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> issDetector;
 		issDetector.setNormals(scene.normals.makeShared());
 		//issDetector.setSearchMethod(tree);
-		issDetector.setSalientRadius(7*resolution);
+		issDetector.setSalientRadius(7*scene.resolution);
 		//nonMax radius set to 5mm since this is approx stddev of melexis camera
 		//issDetector.setNonMaxRadius(4 * resolution);
 		issDetector.setNonMaxRadius(0.005f);

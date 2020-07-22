@@ -69,7 +69,6 @@ std::string dataset = "object_threshold_eval";
 std::string preprocessor_mode = "3d_filtered";
 std::clock_t start, end_time;
 pcl::Correspondences corr;
-float queryResolution, targetResolution;
 float shotRadius_ = 30;
 float fpfhRadius_ = 20;
 float matcher_distance_threshold = 0.95f;
@@ -118,38 +117,6 @@ Eigen::Matrix4f icp(pcl::PointCloud<PointType> query, pcl::PointCloud<PointType>
 	std::cout << icp.getFinalTransformation() << std::endl;
 	mat << icp.getFinalTransformation();
 	return mat;
-}
-
-pcl::PointCloud<PointType> load_3dmodel(string filename, string fileformat) {
-	pcl::PointCloud<PointType> temp_cloud;
-	if (fileformat == "ply") { //if File is a pointcloud in ply format
-		std::cout << "Filename read" << endl;
-		if (pcl::io::loadPLYFile(filename, temp_cloud) == -1)
-		{
-			std::cout << "Error loading query cloud." << std::endl;
-			return (temp_cloud);
-		}
-	}
-	else {
-		std::cout << "Unknown query file type. Check if there are any dots in the files path." << endl;
-		return temp_cloud;
-	}
-	return temp_cloud;
-}
-
-pcl::PointCloud<PointType> addGaussianNoise(pcl::PointCloud<PointType> pointCloud, float standardDeviation) {
-	//from: https://github.com/PointCloudLibrary/pcl/blob/master/tools/add_gaussian_noise.cpp
-	std::random_device rd;
-	std::mt19937 rng(rd());
-	std::normal_distribution<float> nd(0.0f, standardDeviation);
-
-	for (std::size_t point_i = 0; point_i < pointCloud.size(); ++point_i)
-	{
-		pointCloud.points[point_i].x = pointCloud.points[point_i].x + nd(rng);
-		pointCloud.points[point_i].y = pointCloud.points[point_i].y + nd(rng);
-		pointCloud.points[point_i].z = pointCloud.points[point_i].z + nd(rng);
-	}
-	return pointCloud;
 }
 
 pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances) {
@@ -376,11 +343,6 @@ std::string concatenate_distances(std::vector<float>& euclidean_distance, pcl::C
 	return data;
 }
 
-std::string get_fileformat(string filename) {
-	//Get fileformat of the query -> last three letters of filename
-	return filename.std::string::substr(filename.length() - 3);
-}
-
 std::string get_identifier(string filename, int name_pos, int extension_pos) {
 	return filename.substr(name_pos, (extension_pos - name_pos));
 }
@@ -390,39 +352,6 @@ std::string get_input() {
 	string input;
 	cin >> input;
 	return input;
-}
-
-double compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
-//returns the mean distance from a point to its nearest neighbour
-{
-	double res = 0.0;
-	int n_points = 0;
-	int nres;
-	std::vector<int> indices(2);
-	std::vector<float> sqr_distances(2);
-	pcl::search::KdTree<pcl::PointXYZ> tree;
-	tree.setInputCloud(cloud);
-
-	for (size_t i = 0; i < cloud->size(); ++i)
-	{
-		if (!std::isfinite((*cloud)[i].x))
-		{
-			continue;
-		}
-		//Considering the second neighbor since the first is the point itself.
-		nres = tree.nearestKSearch(i, 2, indices, sqr_distances);
-		if (nres == 2)
-		{
-			res += sqrt(sqr_distances[1]);
-			++n_points;
-		}
-	}
-	if (n_points != 0)
-	{
-		res /= n_points;
-	}
-	std::cout << "Cloud resolution: " << res << endl;
-	return res;
 }
 
 float get_median(std::vector<float> values) {
@@ -593,22 +522,6 @@ void print_results(pcl::Correspondences& true_positives, pcl::PointCloud<PointXY
 	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
 	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(queryKeypoints_.size()) << endl;
 };
-
-void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path>& ret)
-{
-	ret.clear();
-	if (!fs::exists(root) || !fs::is_directory(root)) return;
-
-	fs::recursive_directory_iterator it(root);
-	fs::recursive_directory_iterator endit;
-
-	while (it != endit)
-	{
-		if (fs::is_regular_file(*it) && it->path().extension() == ext) ret.push_back(it->path().filename());
-		++it;
-
-	}
-}
 
 void set_dataset(string dataset_name) {
 	dataset = dataset_name;
@@ -831,7 +744,7 @@ int main(int argc, char* argv[])
 
 	//execution_params[0] = CLOUDCREATION
 	if (std::get<1>(execution_params[0])) {
-		get_all_file_names(depth_directory, depth_extension, depth_names);
+		FileHandler.get_all_file_names(depth_directory, depth_extension, depth_names);
 		std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
@@ -888,16 +801,16 @@ int main(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZ>::Ptr origin_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 		//Load origin cloud
-		get_all_file_names(origin_directory, ".ply", origin_names);
+		FileHandler.get_all_file_names(origin_directory, ".ply", origin_names);
 		string origin_filename = origin_directory + "/" + origin_names[0].string();
 		if (pcl::io::loadPLYFile(origin_filename, *origin_cloud) == -1)
 		{
 			std::cout << "Error loading origin cloud." << std::endl;
 		}
-		float queryResolution = static_cast<float> (compute_cloud_resolution(origin_cloud));
+		float queryResolution = CloudCreator.compute_cloud_resolution(origin_cloud);
 
 		//Load all permutation clouds into vector
-		get_all_file_names(permutation_directory, ".ply", permutation_names);
+		FileHandler.get_all_file_names(permutation_directory, ".ply", permutation_names);
 		for (int cloud = 0; cloud < permutation_names.size(); ++cloud) {
 			pcl::PointCloud<pcl::PointXYZ>::Ptr permutation_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			string cloud_filename = permutation_directory + "/" + permutation_names[cloud].string();
@@ -915,14 +828,16 @@ int main(int argc, char* argv[])
 			Matching Matcher;
 			pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			float targetResolution = static_cast<float> (compute_cloud_resolution(clouds[cloud]));
+			float targetResolution = CloudCreator.compute_cloud_resolution(clouds[cloud]);
 
 			Scene Query("query", origin_cloud);
+			Query.resolution = queryResolution;
 			Scene Target("target", clouds[cloud]);
+			Target.resolution = targetResolution;
 
 			//Estimate Normals
 			NormalEstimator.set_scalefactor(ne_scalefactor);
-			NormalEstimator.calculateNormals(queryResolution, Query.cloud);
+			NormalEstimator.calculateNormals(Query.resolution, Query.cloud);
 			NormalEstimator.removeNaNNormals(Query.cloud);
 			Query.normals = NormalEstimator.normals;
 
@@ -933,15 +848,15 @@ int main(int argc, char* argv[])
 			//Detect keypoints
 			KeypointDetector.set_threshold(0.7f);
 			KeypointDetector.set_neighbor_count(5);
-			KeypointDetector.calculateIssKeypoints(Query, queryResolution);
+			KeypointDetector.calculateIssKeypoints(Query);
 			Query.keypoints = KeypointDetector.keypoints;
-			KeypointDetector.calculateIssKeypoints(Target, targetResolution);
+			KeypointDetector.calculateIssKeypoints(Target);
 			Target.keypoints = KeypointDetector.keypoints;
 
 			//Calculate descriptor for each keypoint
-			Describer.calculateDescriptor(Query, supportRadius_* queryResolution);
+			Describer.calculateDescriptor(Query, supportRadius_);
 			Query.descriptors = Describer.descriptors;
-			Describer.calculateDescriptor(Target, supportRadius_* targetResolution);
+			Describer.calculateDescriptor(Target, supportRadius_);
 			Target.descriptors = Describer.descriptors;
 
 			//Matching
@@ -1029,8 +944,8 @@ int main(int argc, char* argv[])
 
 	//execution_params[2] = OBJECT DETECTION
 	if (std::get<1>(execution_params[2])) {
-		get_all_file_names(query_directory, ".ply", query_names);
-		get_all_file_names(target_directory, ".ply", target_names);
+		FileHandler.get_all_file_names(query_directory, ".ply", query_names);
+		FileHandler.get_all_file_names(target_directory, ".ply", target_names);
 
 		for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor)
 		{
@@ -1038,45 +953,53 @@ int main(int argc, char* argv[])
 			{
 				for (int query_number = 0; query_number < query_names.size(); ++query_number)
 				{
-					string query_filename = query_directory + "/" + query_names[query_number].string();
-					int name_pos_query = query_filename.find("02", 0);
+					Normals QueryNormalEstimator;
+					KeypointDetector QueryKeypointDetector;
+					Descriptor QueryDescriber;
+
+					std::string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/log.csv";
+					std::string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
+					std::string query_filename = query_directory + "/" + query_names[query_number].string();
+					int name_pos_query = query_filename.find((query_names[query_number].string()), 0);
 					int ext_pos_query = query_filename.find(".ply", 0);
-					std::string query_fileformat = get_fileformat(query_filename);
-					string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor+ "/log.csv";
-					string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
-					string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
-					if (pcl::io::loadPLYFile(query_filename, *query) == -1)
-					{
-						std::cout << "Error loading query cloud." << std::endl;
-					}
+					std::string query_identifier = get_identifier(query_filename, name_pos_query, ext_pos_query);
+
+					FileHandler.load_ply_file(query_filename, query);
 					Scene Query(query_identifier, query);
 					for (int p = 0; p < Query.cloud->points.size(); ++p) {
 						Query.cloud->points[p].x = Query.cloud->points[p].x * 0.001;
 						Query.cloud->points[p].y = Query.cloud->points[p].y * 0.001;
 						Query.cloud->points[p].z = Query.cloud->points[p].z * 0.001;
 					}
-					queryResolution = static_cast<float> (compute_cloud_resolution(Query.cloud));
+					Query.resolution = CloudCreator.compute_cloud_resolution(Query.cloud);
+					//Query Normal Estimation
+					QueryNormalEstimator.set_scalefactor(ne_scalefactor);
+					QueryNormalEstimator.calculateNormals(Query.resolution, Query.cloud);
+					QueryNormalEstimator.removeNaNNormals(Query.cloud);
+					Query.normals = QueryNormalEstimator.normals;
+					//Query KPD
+					QueryKeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
+					QueryKeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
+					QueryKeypointDetector.calculateIssKeypoints(Query);
+					Query.keypoints = QueryKeypointDetector.keypoints;
+					//Query Description
+					QueryDescriber.calculateDescriptor(Query, supportRadius_);
+					Query.descriptors = QueryDescriber.descriptors;
 
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
-						vector<tuple<string, float>> processing_times, stats;
 						Normals NormalEstimator;
 						KeypointDetector KeypointDetector;
 						Descriptor Describer;
 						Matching Matcher;
+						vector<tuple<string, float>> processing_times, stats;
+
 						string target_filename = target_directory + "/" + target_names[target_number].string();
 						int name_pos = target_filename.find((target_names[target_number].string()), 0);
 						int extension_pos = target_filename.find(".ply", 0);
 						string target_identifier = get_identifier(target_filename, name_pos, extension_pos);
-						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
-						string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
-							+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";						
-						std::string target_fileformat = get_fileformat(target_filename);
-						if (pcl::io::loadPLYFile(target_filename, *target) == -1)
-						{
-							std::cout << "Error loading query cloud." << std::endl;
-						}
+						
+						FileHandler.load_ply_file(target_filename, target);
 						Scene Target(target_identifier, target);
 						// Necessary if undistorted clouds are processed (since they are in mm but pcl works on m-basis)
 						for (int p = 0; p < Target.cloud->points.size(); ++p) {
@@ -1084,16 +1007,14 @@ int main(int argc, char* argv[])
 							Target.cloud->points[p].y = Target.cloud->points[p].y * 0.001;
 							Target.cloud->points[p].z = Target.cloud->points[p].z * 0.001;
 						}
-						targetResolution = static_cast<float> (compute_cloud_resolution(Target.cloud));
+						Target.resolution = CloudCreator.compute_cloud_resolution(Target.cloud);
+
+						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";				
 
 						//Estimate Normals
 						time_meas();
-						NormalEstimator.set_scalefactor(ne_scalefactor);
-						NormalEstimator.calculateNormals(queryResolution, Query.cloud);
-						NormalEstimator.removeNaNNormals(Query.cloud);
-						Query.normals = NormalEstimator.normals;
-
-						NormalEstimator.calculateNormals(targetResolution, Target.cloud);
+						NormalEstimator.calculateNormals(Target.resolution, Target.cloud);
 						NormalEstimator.removeNaNNormals(Target.cloud);
 						Target.normals = NormalEstimator.normals;
 						processing_times.push_back(time_meas("normal estimation"));
@@ -1102,17 +1023,13 @@ int main(int argc, char* argv[])
 						time_meas();
 						KeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
 						KeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
-						KeypointDetector.calculateIssKeypoints(Query, queryResolution);
-						Query.keypoints = KeypointDetector.keypoints;
-						KeypointDetector.calculateIssKeypoints(Target, targetResolution);
+						KeypointDetector.calculateIssKeypoints(Target);
 						Target.keypoints = KeypointDetector.keypoints;
 						processing_times.push_back(time_meas("detecting keypoints"));
 
 						//Calculate descriptor for each keypoint
 						time_meas();
-						Describer.calculateDescriptor(Query, supportRadius_ * queryResolution);
-						Query.descriptors = Describer.descriptors;
-						Describer.calculateDescriptor(Target, supportRadius_* targetResolution);
+						Describer.calculateDescriptor(Target, supportRadius_);
 						Target.descriptors = Describer.descriptors;
 						processing_times.push_back(time_meas("calculating descriptor"));
 
@@ -1124,7 +1041,7 @@ int main(int argc, char* argv[])
 						processing_times.push_back(time_meas("matching"));
 
 						// Output Preparation --> either with or without RANSAC
-						float distance_threshold = shotRadius_ * queryResolution / 2;
+						float distance_threshold = shotRadius_ * Query.resolution / 2;
 						std::vector<float> euclidean_distance;
 						pcl::Correspondences true_positives;
 						int NOF_keypoints = 0;
@@ -1177,6 +1094,8 @@ int main(int argc, char* argv[])
 							FileHandler.writeToFile(matches, match_log_filename);
 						}
 						if (detection_stats) {
+							string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+								+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";
 							std::string stats = create_writable_stats(processing_times);
 							FileHandler.writeToFile(stats, stats_filename);
 						}
@@ -1190,7 +1109,7 @@ int main(int argc, char* argv[])
 							viewer->initCameraParameters();
 							//Move query so that it is separated from the target to see correspondences
 							Eigen::Matrix4f t;
-							t << 1, 0, 0, queryResolution * 200,
+							t << 1, 0, 0, Query.resolution * 200,
 								0, 1, 0, 0,
 								0, 0, 1, 0,
 								0, 0, 0, 1;
@@ -1238,13 +1157,13 @@ int main(int argc, char* argv[])
 	//execution_params[3] = CLOUD PROCESSING
 	if (std::get<1>(execution_params[3])) {
 		if (background_removal) {
-			get_all_file_names(processing_directory, ".ply", processing_names);
+			FileHandler.get_all_file_names(processing_directory, ".ply", processing_names);
 			string background_filename = processing_directory + "/" + processing_names[0].string();
 			int name_pos = background_filename.find((processing_names[0].string()), 0);
 			int extension_pos = background_filename.find(".ply", 0);
 			string background_identifier = get_identifier(background_filename, name_pos, extension_pos);
-			std::string background_fileformat = get_fileformat(background_filename);
-			pcl::PointCloud<pcl::PointXYZ> background = load_3dmodel(background_filename, background_fileformat);
+			pcl::PointCloud<pcl::PointXYZ> background;
+			FileHandler.load_ply_file(background_filename, background.makeShared());
 			//Pop first element (background without query)
 			processing_names.erase(processing_names.begin());
 			for (int i = 0; i < processing_names.size(); ++i) {
@@ -1252,8 +1171,8 @@ int main(int argc, char* argv[])
 				int name_pos = filename.find((processing_names[i].string()), 0);
 				int extension_pos = filename.find(".ply", 0);
 				string identifier = get_identifier(filename, name_pos, extension_pos);
-				std::string fileformat = get_fileformat(filename);
-				pcl::PointCloud<pcl::PointXYZ> scene = load_3dmodel(filename, fileformat);
+				pcl::PointCloud<pcl::PointXYZ> scene;
+				FileHandler.load_ply_file(filename, scene.makeShared());
 				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(scene, background, background_removal_threshold);
 				filename = processed_directory + "/" + processing_names[i].string();
 				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";

@@ -51,7 +51,7 @@ public:
 		bshotEstimation.keypoints = scene.keypoints;
 		bshotEstimation.cloud = scene.cloud;
 
-		bshotEstimation.calculate_SHOT(support_radius);
+		bshotEstimation.calculate_SHOT(support_radius*scene.resolution);
 		bshotEstimation.compute_single_bshot();
 
 		descriptors = bshotEstimation.bshot;

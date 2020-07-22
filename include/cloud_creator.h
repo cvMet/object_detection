@@ -201,9 +201,9 @@ public:
 		return cloud;
 	}
 	
-	double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
+	float compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 	{
-		double res = 0.0;
+		float res = 0.0;
 		int n_points = 0;
 		int nres;
 		std::vector<int> indices(2);
