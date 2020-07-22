@@ -872,46 +872,6 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-	//if (query_learning) {
-	//	get_all_file_names(query_learning_directory, ".ply", query_learning_names);
-
-	//	for (int i = 0; i < query_learning_names.size(); ++i) {
-	//		Descriptor Describer;
-	//		Normals NormalEstimator;
-	//		KeypointDetector KeypointDetector;
-	//		string query_filename = query_learning_directory + "/" + query_learning_names[i].string();
-	//		string query_fileformat = get_fileformat(query_filename);
-	//		query = load_3dmodel(query_filename, query_fileformat);
-	//		queryResolution = static_cast<float> (compute_cloud_resolution(query.makeShared()));
-	//		//Estimate Normals
-	//		NormalEstimator.query = query;
-	//		NormalEstimator.calculateNormals(5 * queryResolution);
-	//		NormalEstimator.removeQueryNaNNormals();
-	//		query = NormalEstimator.query;
-	//		//Detect keypoints
-	//		KeypointDetector.calculateIssKeypoints(KeypointDetector.queryKeypoints_, query, NormalEstimator.queryNormals_, queryResolution, 0.7f, 5);
-	//		//Calculate descriptor for each keypoint
-	//		Describer.NormalEstimator = NormalEstimator;
-	//		Describer.KeypointDetector = KeypointDetector;
-	//		Describer.query_ = query;
-	//		Describer.calculateDescriptor(supportRadius_ * queryResolution);
-	//		for (int descriptor = 0; descriptor < Describer.queryDescriptor_.size(); ++descriptor) {
-	//			auto position = find_if(learned_descriptors.begin(), learned_descriptors.end(),
-	//				[=](auto item)
-	//				{
-	//					return (get<0>(item).bits == Describer.queryDescriptor_[descriptor].bits);
-	//				});
-	//			if (position != learned_descriptors.end()) {
-	//				std::get<1>(learned_descriptors[descriptor]) += 1;
-	//				std::cout << "descr: " << std::to_string(descriptor) << " count: " << std::to_string(std::get<1>(learned_descriptors[descriptor])) << std::endl;
-	//			}
-	//			else {
-	//				learned_descriptors.push_back(make_tuple(Describer.queryDescriptor_[descriptor], 1));
-	//			}
-	//		}
-	//	}
-	//}
-
 	//execution_params[0] = CLOUDCREATION
 	if (std::get<1>(execution_params[0])) {
 		get_all_file_names(depth_directory, depth_extension, depth_names);
@@ -1169,7 +1129,6 @@ int main(int argc, char* argv[])
 						}
 						targetResolution = static_cast<float> (compute_cloud_resolution(Target.cloud));
 
-
 						//Estimate Normals
 						time_meas();
 						NormalEstimator.set_scalefactor(ne_scalefactor);
@@ -1199,17 +1158,6 @@ int main(int argc, char* argv[])
 						Describer.calculateDescriptor(Target, supportRadius_* targetResolution);
 						Target.descriptors = Describer.descriptors;
 						processing_times.push_back(time_meas("calculating descriptor"));
-
-
-						//if (query_learning) {
-						//	vector<bshot_descriptor> descr;
-						//	for (int i = 0; i < learned_descriptors.size(); ++i) {
-						//		descr.push_back(get<0>(learned_descriptors.at(i)));
-						//	}
-						//	Describer.queryDescriptor_ = descr;
-						//}
-						//else {}
-
 
 						//Matching
 						time_meas();
