@@ -6,21 +6,21 @@ class Registrator {
 private:
 	Scene* Query;
 	Scene* Target;
-	pcl::Correspondences InputCorrespondences;
-	pcl::Correspondences RANSACCorrespondences;
 	Eigen::Matrix4f ransac_transformation;
 	Eigen::Matrix4f icp_transformation;
+	pcl::Correspondences InputCorrespondences;
+	pcl::Correspondences RANSACCorrespondences;
+	pcl::Correspondences true_positives;
 	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr ransac_aligned_cloud;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr ransac_aligned_keypoints;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr icp_aligned_cloud;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr icp_aligned_keypoints;
-	bool query_aligned = false;
 	std::vector<float> euclidean_distances;
 	std::string NNDR_euclidean_pair;
-	float distance_threshold = 0.0f;
-	pcl::Correspondences true_positives;
 	std::string footer;
+	float distance_threshold = 0.0f;
+	bool query_aligned = false;
 
 public:
 
@@ -32,6 +32,7 @@ public:
 		icp_aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>),
 		icp_aligned_keypoints(new pcl::PointCloud<pcl::PointXYZ>) {
 	}
+
 	void set_distance_threshold(float threshold) {
 		distance_threshold = threshold;
 	}
@@ -47,9 +48,9 @@ public:
 
 	Eigen::Matrix4f do_ransac() {
 		RansacRejector.getCorrespondences(RANSACCorrespondences);
-		std::cout << "# Correspondences found after RANSAC: " << RANSACCorrespondences.size() << endl;
 		ransac_transformation = RansacRejector.getBestTransformation();
-		cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << ransac_transformation << endl;
+		std::cout << "# Correspondences found after RANSAC: " << RANSACCorrespondences.size() << endl;
+		std::cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << ransac_transformation << endl;
 		pcl::transformPointCloud(*Query->cloud, *ransac_aligned_cloud, ransac_transformation);
 		pcl::transformPointCloud(Query->keypoints, *ransac_aligned_keypoints, ransac_transformation);
 		return ransac_transformation;
@@ -59,7 +60,6 @@ public:
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 		icp.setInputSource(ransac_aligned_cloud);
 		icp.setInputTarget(Target->cloud);
-		pcl::PointCloud<pcl::PointXYZ> temp;
 		icp.align(*icp_aligned_cloud);
 		std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 		std::cout << icp.getFinalTransformation() << std::endl;
@@ -90,6 +90,33 @@ public:
 		euclidean_distances = distance;
 	}
 
+	void calculate_true_positives() {
+		pcl::Correspondences temp;
+		for (int i = 0; i < euclidean_distances.size(); ++i) {
+			if (euclidean_distances[i] < distance_threshold) {
+				temp.push_back(RANSACCorrespondences.at(i));
+			}
+			else {
+				std::cout << "FP @ " + to_string(RANSACCorrespondences.at(i).index_match) << endl;
+			}
+		}
+		true_positives = temp;
+	}
+
+	void print_precision_recall() {
+		calculate_euclidean_distances();
+		calculate_true_positives();
+		pcl::Correspondences Correspondences;
+		if (RANSACCorrespondences.size() >= RANSAC_MIN_MATCHES) {
+			Correspondences = RANSACCorrespondences;
+		}
+		else {
+			Correspondences = InputCorrespondences;
+		}
+		std::cout << "TP: " << true_positives.size() << ", FP: " << Correspondences.size() - true_positives.size() << endl;
+		std::cout << "Precision: " << (float)true_positives.size() / (float)Correspondences.size() << " Recall: " << true_positives.size() / (float)(Query->keypoints.size()) << endl;
+	}
+
 	void concatenate_NNDR_and_euclidean_distance() {
 		pcl::Correspondences Correspondences;
 		if (RANSACCorrespondences.size() >= RANSAC_MIN_MATCHES) {
@@ -107,42 +134,18 @@ public:
 		NNDR_euclidean_pair = data;
 	}
 
-	void calculate_true_positives() {
-		pcl::Correspondences temp;
-		for (int i = 0; i < euclidean_distances.size(); ++i) {
-			if (euclidean_distances[i] < distance_threshold) {
-				temp.push_back(RANSACCorrespondences.at(i));
-			}
-			else {
-				std::cout << "FP @ " + to_string(RANSACCorrespondences.at(i).index_match) << endl;
-			}
-		}
-		true_positives = temp;
-	}
-
-	void print_precision_recall() {
-		pcl::Correspondences Correspondences;
-		if (RANSACCorrespondences.size() >= RANSAC_MIN_MATCHES) {
-			Correspondences = RANSACCorrespondences;
-		}
-		else {
-			Correspondences = InputCorrespondences;
-		}
-		std::cout << "TP: " << true_positives.size() << ", FP: " << Correspondences.size() - true_positives.size() << endl;
-		std::cout << "Precision: " << (float)true_positives.size() / (float)Correspondences.size() << " Recall: " << true_positives.size() / (float)(Query->keypoints.size()) << endl;
-	}
-
 	void create_footer() {
 		int NOF_keypoints = (Target->keypoints.size() < Query->keypoints.size()) ? Target->keypoints.size() : Query->keypoints.size();
 		footer = std::to_string(NOF_keypoints) + "," + std::to_string(distance_threshold) + "\n";
 	}
 
-	std::string get_NNDR_euclidean_pair() {
-		return NNDR_euclidean_pair;
-	}
+	std::string get_result() {
+		std::string result = "";
+		concatenate_NNDR_and_euclidean_distance();
+		create_footer();
+		result = NNDR_euclidean_pair + "\n" + footer;
+		return result;
 
-	std::string get_footer() {
-		return footer;
 	}
 
 	bool is_query_aligned() {

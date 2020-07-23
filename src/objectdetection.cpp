@@ -939,18 +939,12 @@ int main(int argc, char* argv[])
 						Registrator.init_RANSAC();
 						Registrator.do_ransac();
 						Registrator.do_icp();
-						Registrator.calculate_euclidean_distances();
-						Registrator.calculate_true_positives();
 						Registrator.print_precision_recall();
-						Registrator.concatenate_NNDR_and_euclidean_distance();
-						std::string match_distances = Registrator.get_NNDR_euclidean_pair();
-						Registrator.create_footer();
-						std::string footer = Registrator.get_footer();
+						std::string result = Registrator.get_result();
 
 						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
-						FileHandler.writeToFile(match_distances, pr_filename);
-						FileHandler.writeToFile(footer, pr_filename);
+						FileHandler.writeToFile(result, pr_filename);
 
 						if (match_retrieval) {
 							std::string matches;
