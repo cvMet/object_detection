@@ -8,13 +8,14 @@
 class ConfigNEMenu : public BaseMenu
 {
 public:
-    ConfigNEMenu(BaseMenu* menu)
+    ConfigNEMenu(BaseMenu* menu, ParameterHandler * param_handler)
     {
         MenuName = std::string("Config Normal Estimator Menu");
         m_MenuText = std::string("S - add normal estimator Scale factor (default = 5)\n")
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)

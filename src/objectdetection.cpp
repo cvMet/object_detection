@@ -36,6 +36,7 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include "../include/menu/filter_menu.h"
 #include "../include/menu/merge_menu.h"
 #include "../include/registrator.h"
+#include "../include/parameter_handler.h"
 #include "objectdetection.h"
 
 //Namespaces
@@ -441,13 +442,13 @@ void set_object(string object_name) {
 	object = object_name;
 }
 
-void set_execution_param(string id) {
-	for (int i = 0; i < execution_params.size(); ++i) {
-		if (id.compare(get<0>(execution_params[i])) == 0) {
-			get<1>(execution_params[i]) = true;
-		}
-	}
-}
+//void set_execution_param(string id) {
+//	for (int i = 0; i < execution_params.size(); ++i) {
+//		if (id.compare(get<0>(execution_params[i])) == 0) {
+//			get<1>(execution_params[i]) = true;
+//		}
+//	}
+//}
 
 void set_detection_threshold(int threshold) {
 	detection_threshold = threshold;
@@ -477,17 +478,19 @@ int main(int argc, char* argv[])
 {
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
+	ParameterHandler PH;
+	ParameterHandler* ParameterHandler = &PH;
 
-	execution_params.push_back(make_tuple("cloudcreation", false));
-	execution_params.push_back(make_tuple("merging", false));
-	execution_params.push_back(make_tuple("detection", false));
-	execution_params.push_back(make_tuple("processing", false));
+	//execution_params.push_back(make_tuple("cloudcreation", false));
+	//execution_params.push_back(make_tuple("merging", false));
+	//execution_params.push_back(make_tuple("detection", false));
+	//execution_params.push_back(make_tuple("processing", false));
 
 	filter.push_back(make_tuple("median", false));
 	filter.push_back(make_tuple("roi", false));
 	filter.push_back(make_tuple("sor", false));
 
-	BaseMenu* CurrentMenu = new MainMenu;
+	BaseMenu* CurrentMenu = new MainMenu(ParameterHandler);
 	bool quit = false;
 	bool execute = false;
 	while (!quit && !execute)
@@ -512,7 +515,8 @@ int main(int argc, char* argv[])
 	}
 
 	//execution_params[0] = CLOUDCREATION
-	if (std::get<1>(execution_params[0])) {
+	/*if (std::get<1>(execution_params[0])) {*/
+	if (ParameterHandler->get_exec_param_state("cloudcreation")) {
 		//Paths used during cloudgen
 		string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
 		string depth_extension = ".txt";
@@ -576,7 +580,8 @@ int main(int argc, char* argv[])
 	}
 
 	//execution_params[1] = CLOUD MERGING
-	if (std::get<1>(execution_params[1])) {
+	//if (std::get<1>(execution_params[1])) {
+	if (ParameterHandler->get_exec_param_state("merging")) {
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
 		std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
@@ -706,7 +711,8 @@ int main(int argc, char* argv[])
 	}
 
 	//execution_params[2] = OBJECT DETECTION
-	if (std::get<1>(execution_params[2])) {
+	//if (std::get<1>(execution_params[2])) {
+	if (ParameterHandler->get_exec_param_state("detection")) {
 		//Clouds used during objectdetection
 		pcl::PointCloud<pcl::PointXYZ>::Ptr query(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr target(new pcl::PointCloud<pcl::PointXYZ>);
@@ -890,7 +896,8 @@ int main(int argc, char* argv[])
 	}
 
 	//execution_params[3] = CLOUD PROCESSING
-	if (std::get<1>(execution_params[3])) {
+	//if (std::get<1>(execution_params[3])) {
+	if (ParameterHandler->get_exec_param_state("processing")) {
 		if (background_removal) {
 			FileHandler.get_all_file_names(processing_directory, ".ply", processing_names);
 			string background_filename = processing_directory + "/" + processing_names[0].string();

@@ -8,7 +8,7 @@
 class ConfigKPDMenu : public BaseMenu
 {
 public:
-    ConfigKPDMenu(BaseMenu* menu)
+    ConfigKPDMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Config KPD Menu");
         m_MenuText = std::string("T - add KPD Threshold(default = 0.7)\n")
@@ -16,6 +16,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)

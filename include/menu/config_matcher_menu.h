@@ -8,7 +8,7 @@
 class ConfigMatcherMenu : public BaseMenu
 {
 public:
-    ConfigMatcherMenu(BaseMenu* menu)
+    ConfigMatcherMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Config Matcher Menu");
         m_MenuText = std::string("A - enable/disable RANSAC (default = true)\n")
@@ -16,6 +16,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)

@@ -10,7 +10,7 @@ class LearningMenu : public BaseMenu
 {
 
 public:
-    LearningMenu(BaseMenu* menu)
+    LearningMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Learning Menu");
         m_MenuText = std::string("L - enable query Learning\n")
@@ -18,6 +18,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
 

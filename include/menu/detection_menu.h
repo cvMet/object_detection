@@ -9,11 +9,12 @@
 #include "config_matcher_menu.h"
 #include "config_input_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/parameter_handler.h"
 
 class DetectionMenu : public BaseMenu
 {
 public:
-    DetectionMenu(BaseMenu* menu)
+    DetectionMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Detection Menu");
         m_MenuText = std::string("T - set detection Threshold\n")
@@ -26,6 +27,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -41,32 +43,32 @@ public:
         break;
         case 'I':
         {
-            aNewMenu = new ConfigInputMenu(this);
+            aNewMenu = new ConfigInputMenu(this, parameter_handler);
         }
         break;
         case 'N':
         {
-            aNewMenu = new ConfigNEMenu(this);
+            aNewMenu = new ConfigNEMenu(this, parameter_handler);
         }
         break;
         case 'K':
         {
-            aNewMenu = new ConfigKPDMenu(this);
+            aNewMenu = new ConfigKPDMenu(this, parameter_handler);
         }
         break;
         case 'M':
         {
-            aNewMenu = new ConfigMatcherMenu(this);
+            aNewMenu = new ConfigMatcherMenu(this, parameter_handler);
         }
         break;
         case 'O':
         {
-            aNewMenu = new ConfigOutputMenu(this);
+            aNewMenu = new ConfigOutputMenu(this, parameter_handler);
         }
         break;
         case 'E':
         {
-            set_execution_param(std::string("detection"));
+            parameter_handler->set_execution_param(std::string("detection"));
             execute = true;
         }
         break;

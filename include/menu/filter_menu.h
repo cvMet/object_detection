@@ -21,7 +21,7 @@ public:
 			+ "Q Quit";
 	}
 
-	FilterMenu::FilterMenu(BaseMenu* menu)
+	FilterMenu::FilterMenu(BaseMenu* menu, ParameterHandler* param_handler)
 	{
 		MenuName = std::string("Filter Menu");
 		m_MenuText = std::string("Choose the filters you want to apply during cloud creation\n")
@@ -31,6 +31,7 @@ public:
 			+ "Q Quit";
 		parent = menu;
 		child = true;
+		parameter_handler = param_handler;
 	}
 
 	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)

@@ -9,7 +9,7 @@
 class ConfigInputMenu : public BaseMenu
 {
 public:
-    ConfigInputMenu(BaseMenu* menu)
+    ConfigInputMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Input Config Menu");
         m_MenuText = std::string("D - set Dataset\n")
@@ -18,6 +18,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)

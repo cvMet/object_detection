@@ -4,11 +4,12 @@
 #include <string>
 #include "base_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/parameter_handler.h"
 
 class MergeMenu : public BaseMenu
 {
 public:
-    MergeMenu(BaseMenu* menu)
+    MergeMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Merge Menu");
         m_MenuText = std::string("V - enable/disable Visualization\n")
@@ -16,6 +17,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -33,7 +35,7 @@ public:
 
         case 'E':
         {
-            set_execution_param(std::string("merging"));
+            parameter_handler->set_execution_param(std::string("merging"));
             execute = true;
         }
         break;

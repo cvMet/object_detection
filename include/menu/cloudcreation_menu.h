@@ -6,12 +6,13 @@
 #include "cloudcreation_menu.h"
 #include "filter_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/parameter_handler.h"
 
 class CloudCreationMenu : public BaseMenu
 {
 
 public:
-    CloudCreationMenu(BaseMenu* menu)
+    CloudCreationMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Cloud Creation Menu");
         m_MenuText = std::string("D - set Dataset\n")
@@ -22,6 +23,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
 
@@ -43,7 +45,7 @@ public:
         break;
         case 'F':
         {
-            aNewMenu = new FilterMenu(this);
+            aNewMenu = new FilterMenu(this, parameter_handler);
         }
         break;
         case 'S':
@@ -54,7 +56,7 @@ public:
         break;
         case 'E':
         {
-            set_execution_param(std::string("cloudcreation"));
+            parameter_handler->set_execution_param(std::string("cloudcreation"));
             execute = true;
         }
         break;

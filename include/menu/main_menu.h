@@ -13,7 +13,7 @@
 class MainMenu : public BaseMenu
 {
 public:
-	MainMenu()
+	MainMenu(ParameterHandler* param_handler)
 	{
 		MenuName = std::string("Main Menu");
 		m_MenuText = std::string("C - Create clouds\n")
@@ -22,6 +22,7 @@ public:
 			+ "D - Detect objects\n"
 			+ "L - Learn descriptors\n"
 			+ "Q - Quit";
+		parameter_handler = param_handler;
 	}
 
 	BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -32,27 +33,27 @@ public:
 		{
 			case 'C':
 			{
-				aNewMenu = new CloudCreationMenu(this);
+				aNewMenu = new CloudCreationMenu(this, parameter_handler);
 			}
 			break;
 			case 'P':
 			{
-				aNewMenu = new CloudProcessingMenu(this);
+				aNewMenu = new CloudProcessingMenu(this, parameter_handler);
 			}
 			break;
 			case 'M':
 			{
-				aNewMenu = new MergeMenu(this);
+				aNewMenu = new MergeMenu(this, parameter_handler);
 			}
 			break;
 			case 'D':
 			{
-				aNewMenu = new DetectionMenu(this);
+				aNewMenu = new DetectionMenu(this, parameter_handler);
 			}
 			break;
 			case 'L':
 			{
-				aNewMenu = new LearningMenu(this);
+				aNewMenu = new LearningMenu(this, parameter_handler);
 			}
 			break;
 			case 'Q':

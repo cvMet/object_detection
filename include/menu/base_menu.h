@@ -4,18 +4,29 @@
 #include <string>
 #include <windows.h>
 #include "../include/menu/base_menu.h"
+#include "../include/parameter_handler.h"
 
 class BaseMenu
 {
 public:
-    BaseMenu() { MenuName = "BaseMenu", m_MenuText = "This shouldn't ever be shown!", parent = NULL; }
     bool child = false;
+
+    BaseMenu() {
+        MenuName = "BaseMenu",
+        m_MenuText = "This shouldn't ever be shown!",
+        parent = NULL,
+        parameter_handler = NULL;
+    }
+    
     virtual ~BaseMenu() { }
+
     virtual BaseMenu *getNextMenu(char iChoice, bool& quit, bool& execute) = 0;
+
     virtual void printText()
     {
         std::cout << m_MenuText << std::endl;
     }
+
     virtual void printFlavorText()
     {
         int width = longest_menu_item();
@@ -90,4 +101,5 @@ protected:
     std::string MenuName;
     std::string m_MenuText;// This string will be shared by all children (i.e. derived) classes
     BaseMenu* parent;
+    ParameterHandler* parameter_handler;
 };

@@ -8,7 +8,7 @@
 void time_meas(void);
 std::string get_input(void);
 bool get_path(void);
-void set_execution_param(std::string);
+//void set_execution_param(std::string);
 //Cloudgen
 void set_dataset(std:: string);
 void set_object(std::string);

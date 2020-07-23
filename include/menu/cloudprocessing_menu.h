@@ -4,12 +4,13 @@
 #include <string>
 #include "base_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/parameter_handler.h"
 
 class CloudProcessingMenu : public BaseMenu
 {
 
 public:
-    CloudProcessingMenu(BaseMenu* menu)
+    CloudProcessingMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Cloud Processing Menu");
         m_MenuText = std::string("T - set background removal Threshold (default = 0.005 [m])\n")
@@ -18,6 +19,7 @@ public:
             + "R - Return";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
 
@@ -40,7 +42,7 @@ public:
         break;
         case 'E':
         {
-            set_execution_param(std::string("processing"));
+            parameter_handler->set_execution_param(std::string("processing"));
             execute = true;
         }
         break;

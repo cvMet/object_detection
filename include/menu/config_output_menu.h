@@ -5,11 +5,12 @@
 #include "base_menu.h"
 #include "config_kpd_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/parameter_handler.h"
 
 class ConfigOutputMenu : public BaseMenu
 {
 public:
-    ConfigOutputMenu(BaseMenu* menu)
+    ConfigOutputMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Output Config Menu");
         m_MenuText = std::string("S - enable/disable runtime Statistics\n")
@@ -20,6 +21,7 @@ public:
             + "E - Execute";
         parent = menu;
         child = true;
+        parameter_handler = param_handler;
     }
 
     BaseMenu* getNextMenu(char choice, bool& quit, bool& execute)
@@ -59,7 +61,7 @@ public:
         break;
         case 'E':
         {
-            set_execution_param(std::string("detection"));
+            parameter_handler->set_execution_param(std::string("detection"));
             execute = true;
         }
         break;
