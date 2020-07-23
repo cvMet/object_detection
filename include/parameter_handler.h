@@ -22,7 +22,7 @@ private:
     float matcher_distance_threshold = 0.95f;
     float background_removal_threshold = 0.005f;
     int detection_threshold = 0;
-    std::string object = "mutter_sequence_easy_wBgr";
+    std::string object = "mutter_sequence_easy";
     std::string dataset = "object_threshold_eval";
     std::string preprocessor_mode = "3d_filtered";
 public:

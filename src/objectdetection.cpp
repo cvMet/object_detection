@@ -374,8 +374,8 @@ int main(int argc, char* argv[])
 	CloudCreator CloudCreator;
 	ParameterHandler PH;
 	ParameterHandler* ParameterHandler = &PH;
-
 	BaseMenu* CurrentMenu = new MainMenu(ParameterHandler);
+
 	bool quit = false;
 	bool execute = false;
 	while (!quit && !execute)
