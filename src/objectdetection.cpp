@@ -475,7 +475,6 @@ void add_detector_nn(int neighbor) {
 
 int main(int argc, char* argv[])
 {
-	pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> RansacRejector;
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
 
