@@ -61,32 +61,15 @@ ______
 Params used during cloudgen & objectdetection
 */
 std::vector<tuple<bshot_descriptor, int>> learned_descriptors;
-std::vector<tuple<string, bool>> execution_params;
-std::vector<tuple<string, bool>> filter;
 std::vector<tuple<string, vector<double>>> angles;
-std::vector<float> keypointdetector_threshold = { 0.7f };
-std::vector<int> keypointdetector_nof_neighbors = { 5 };
-std::string object = "mutter_sequence_easy_wBgr";
-std::string dataset = "object_threshold_eval";
-std::string preprocessor_mode = "3d_filtered";
+
 std::clock_t start, end_time;
-pcl::Correspondences corr;
 float shotRadius_ = 30;
 float fpfhRadius_ = 20;
-float matcher_distance_threshold = 0.95f;
-float background_removal_threshold = 0.005f;
+
 const int rows = 240, columns = 320;
-int detection_threshold = 0;
-int ne_scalefactor = 5;
-bool background_removal = false;
-bool detection_stats = false;
-bool match_retrieval = false;
-bool query_learning = false;
-bool cloudgen_stats = false;
-bool detection_log = false;
 bool running = false;
-bool ransac = true;
-bool visu = false;
+bool query_learning = false;
 
 //Paths used during objectdetection
 string query_directory = "../../../../clouds/query_clouds";
@@ -367,51 +350,6 @@ bool get_path() {
 	return true;
 }
 
-bool toggle_filter(string id) {
-	for (int i = 0; i < filter.size(); ++i) {
-		if (id.compare(get<0>(filter[i])) == 0) {
-			get<1>(filter[i]) = !(get<1>(filter[i]));
-			return (get<1>(filter[i]));
-		}
-	}
-	return false;
-}
-
-bool toggle_cloudgen_stats() {
-	cloudgen_stats = !cloudgen_stats;
-	return cloudgen_stats;
-}
-
-bool toggle_ransac() {
-	ransac = !ransac;
-	return ransac;
-}
-
-bool toggle_detection_stats() {
-	detection_stats = !detection_stats;
-	return detection_stats;
-}
-
-bool toggle_detection_logging() {
-	detection_log = !detection_log;
-	return detection_log;
-}
-
-bool toggle_match_retrieval() {
-	match_retrieval = !match_retrieval;
-	return match_retrieval;
-}
-
-bool toggle_background_removal() {
-	background_removal = !background_removal;
-	return background_removal;
-}
-
-bool toggle_visualization() {
-	visu = !visu;
-	return visu;
-}
-
 void time_meas() {
 	double cpuTimeUsed;
 	if (!running) {
@@ -426,52 +364,8 @@ void time_meas() {
 	}
 }
 
-void set_dataset(string dataset_name) {
-	dataset = dataset_name;
-}
-
 void set_query_learning() {
 	query_learning = true;
-}
-
-void set_preprocessor(string preprocessor) {
-	preprocessor_mode = preprocessor;
-}
-
-void set_object(string object_name) {
-	object = object_name;
-}
-
-//void set_execution_param(string id) {
-//	for (int i = 0; i < execution_params.size(); ++i) {
-//		if (id.compare(get<0>(execution_params[i])) == 0) {
-//			get<1>(execution_params[i]) = true;
-//		}
-//	}
-//}
-
-void set_detection_threshold(int threshold) {
-	detection_threshold = threshold;
-}
-
-void set_background_removal_threshold(float threshold) {
-	background_removal_threshold = threshold;
-}
-
-void set_ne_scalefactor(int factor) {
-	ne_scalefactor = factor;
-}
-
-void set_matcher_distance_threshold(float threshold) {
-	matcher_distance_threshold = threshold;
-}
-
-void add_detector_threshold(float threshold) {
-	keypointdetector_threshold.push_back(threshold);
-}
-
-void add_detector_nn(int neighbor) {
-	keypointdetector_nof_neighbors.push_back(neighbor);
 }
 
 int main(int argc, char* argv[])
@@ -480,15 +374,6 @@ int main(int argc, char* argv[])
 	CloudCreator CloudCreator;
 	ParameterHandler PH;
 	ParameterHandler* ParameterHandler = &PH;
-
-	//execution_params.push_back(make_tuple("cloudcreation", false));
-	//execution_params.push_back(make_tuple("merging", false));
-	//execution_params.push_back(make_tuple("detection", false));
-	//execution_params.push_back(make_tuple("processing", false));
-
-	filter.push_back(make_tuple("median", false));
-	filter.push_back(make_tuple("roi", false));
-	filter.push_back(make_tuple("sor", false));
 
 	BaseMenu* CurrentMenu = new MainMenu(ParameterHandler);
 	bool quit = false;
@@ -514,13 +399,11 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//execution_params[0] = CLOUDCREATION
-	/*if (std::get<1>(execution_params[0])) {*/
 	if (ParameterHandler->get_exec_param_state("cloudcreation")) {
 		//Paths used during cloudgen
-		string depth_directory = "../../../../datasets/" + dataset + "/raw_depth/" + object;
+		string depth_directory = "../../../../datasets/" + ParameterHandler->get_dataset() + "/raw_depth/" + ParameterHandler->get_object();
 		string depth_extension = ".txt";
-		string cloud_directory = "../../../../clouds/" + dataset + "/" + object;
+		string cloud_directory = "../../../../clouds/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object();
 		vector<fs::path> depth_names;
 		vector<fs::path> cloud_names;
 		//Clouds used during cloud generation
@@ -534,7 +417,7 @@ int main(int argc, char* argv[])
 		std::string bkgr_depth_filename = depth_directory + "/" + depth_names[0].string();
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
-		if (std::get<1>(filter[0])) {
+		if (ParameterHandler->get_filter_state("median")) {
 			background_cloud = CloudCreator.median_filter_cloud(background_cloud, 5);
 		}
 		//Pop first element (background without query)
@@ -549,7 +432,7 @@ int main(int argc, char* argv[])
 			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
 			creation_stats.push_back(time_meas("time_distanceToCloud"));
 			//If median filtering enabled
-			if (std::get<1>(filter[0])) {
+			if (ParameterHandler->get_filter_state("median")) {
 				time_meas();
 				query_cloud = CloudCreator.median_filter_cloud(query_cloud, 5);
 				creation_stats.push_back(time_meas("time_medianfilter"));
@@ -557,13 +440,13 @@ int main(int argc, char* argv[])
 			time_meas();
 			final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.005f);
 			creation_stats.push_back(time_meas("time_backgroundRemoval"));
-			if (std::get<1>(filter[1])) {
+			if (ParameterHandler->get_filter_state("roi")) {
 				time_meas();
 				final_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.2f);
 				final_cloud = CloudCreator.roi_filter(final_cloud, "y", -0.2f, 0.2f);
 				creation_stats.push_back(time_meas("time_ROIfilter"));
 			}
-			if (std::get<1>(filter[2])) {
+			if (ParameterHandler->get_filter_state("sor")) {
 				time_meas();
 				final_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(), 10);
 				creation_stats.push_back(time_meas("time_SORfilter"));
@@ -571,7 +454,7 @@ int main(int argc, char* argv[])
 			string filename = cloud_directory + "/" + depth_names[i].string();
 			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 			pcl::io::savePLYFileASCII(substr, final_cloud);
-			if (cloudgen_stats) {
+			if (ParameterHandler->get_cloudgen_stats_state()) {
 				string statistics = create_writable_stats(creation_stats);
 				string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 				FileHandler.writeToFile(statistics, stats_filename);
@@ -579,8 +462,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//execution_params[1] = CLOUD MERGING
-	//if (std::get<1>(execution_params[1])) {
 	if (ParameterHandler->get_exec_param_state("merging")) {
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
@@ -617,11 +498,10 @@ int main(int argc, char* argv[])
 			Target.resolution = targetResolution;
 
 			//Estimate Normals
-			NormalEstimator.set_scalefactor(ne_scalefactor);
+			NormalEstimator.set_scalefactor(ParameterHandler->get_ne_scalefactor());
 			NormalEstimator.calculateNormals(Query.resolution, Query.cloud);
 			NormalEstimator.removeNaNNormals(Query.cloud);
 			Query.normals = NormalEstimator.normals;
-
 			NormalEstimator.calculateNormals(targetResolution, Target.cloud);
 			NormalEstimator.removeNaNNormals(Target.cloud);
 			Target.normals = NormalEstimator.normals;
@@ -643,7 +523,7 @@ int main(int argc, char* argv[])
 			//Matching
 			Matcher.queryDescriptor_ = Query.descriptors;
 			Matcher.targetDescriptor_ = Target.descriptors;
-			Matcher.calculateCorrespondences(matcher_distance_threshold, true);
+			Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold(), true);
 
 			Registrator Registrator(Query, Target, Matcher.corresp);
 			Registrator.set_distance_threshold(supportRadius_* Query.resolution / 2);
@@ -653,7 +533,7 @@ int main(int argc, char* argv[])
 			//Add inverse of transformation matrices to corresponding vector to enable target-to-source transformation
 			transformation_matrices.push_back(make_tuple(ransac_transformation.inverse(), icp_transformation.inverse()));
 		}
-		if (visu) {
+		if (ParameterHandler->get_visualization_state()) {
 			for (int i = 0; i < clouds.size(); ++i) {
 				pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 				boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -692,7 +572,7 @@ int main(int argc, char* argv[])
 			*master_cloud += *transformed_clouds[i];
 		}
 		pcl::io::savePLYFileASCII("../../../../clouds/merging/merged/mastercloud.ply", *master_cloud);
-		if (visu) {
+		if (ParameterHandler->get_visualization_state()) {
 			boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 			viewer->setBackgroundColor(0, 0, 0);
 			viewer->initCameraParameters();
@@ -710,8 +590,6 @@ int main(int argc, char* argv[])
 		pcl::io::savePLYFileASCII("../../../../clouds/merging/merged/mastercloud_SOR.ply", *master_cloud);
 	}
 
-	//execution_params[2] = OBJECT DETECTION
-	//if (std::get<1>(execution_params[2])) {
 	if (ParameterHandler->get_exec_param_state("detection")) {
 		//Clouds used during objectdetection
 		pcl::PointCloud<pcl::PointXYZ>::Ptr query(new pcl::PointCloud<pcl::PointXYZ>);
@@ -719,9 +597,9 @@ int main(int argc, char* argv[])
 		FileHandler.get_all_file_names(query_directory, ".ply", query_names);
 		FileHandler.get_all_file_names(target_directory, ".ply", target_names);
 
-		for (int neighbor = 0; neighbor < keypointdetector_nof_neighbors.size(); ++neighbor)
+		for (int neighbor = 0; neighbor < ParameterHandler->sizeof_detector_nn(); ++neighbor)
 		{
-			for (int threshold = 0; threshold < keypointdetector_threshold.size(); ++threshold)
+			for (int threshold = 0; threshold < ParameterHandler->sizeof_detector_threshold(); ++threshold)
 			{
 				for (int query_number = 0; query_number < query_names.size(); ++query_number)
 				{
@@ -729,8 +607,8 @@ int main(int argc, char* argv[])
 					KeypointDetector QueryKeypointDetector;
 					Descriptor QueryDescriber;
 
-					std::string log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/log.csv";
-					std::string match_log_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor + "/match_log.csv";
+					std::string log_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor + "/log.csv";
+					std::string match_log_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor + "/match_log.csv";
 					std::string query_filename = query_directory + "/" + query_names[query_number].string();
 					int name_pos_query = query_filename.find((query_names[query_number].string()), 0);
 					int ext_pos_query = query_filename.find(".ply", 0);
@@ -745,13 +623,13 @@ int main(int argc, char* argv[])
 					}
 					Query.resolution = CloudCreator.compute_cloud_resolution(Query.cloud);
 					//Query Normal Estimation
-					QueryNormalEstimator.set_scalefactor(ne_scalefactor);
+					QueryNormalEstimator.set_scalefactor(ParameterHandler->get_ne_scalefactor());
 					QueryNormalEstimator.calculateNormals(Query.resolution, Query.cloud);
 					QueryNormalEstimator.removeNaNNormals(Query.cloud);
 					Query.normals = QueryNormalEstimator.normals;
 					//Query Keypoint Detection
-					QueryKeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
-					QueryKeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
+					QueryKeypointDetector.set_threshold(ParameterHandler->get_detector_threshold_at(threshold));
+					QueryKeypointDetector.set_neighbor_count(ParameterHandler->get_detector_nn_at(neighbor));
 					QueryKeypointDetector.calculateIssKeypoints(Query);
 					Query.keypoints = QueryKeypointDetector.keypoints;
 					//Query Description
@@ -791,8 +669,8 @@ int main(int argc, char* argv[])
 
 						//Target Keypoint Detection
 						time_meas();
-						KeypointDetector.set_threshold(keypointdetector_threshold[threshold]);
-						KeypointDetector.set_neighbor_count(keypointdetector_nof_neighbors[neighbor]);
+						KeypointDetector.set_threshold(ParameterHandler->get_detector_threshold_at(threshold));
+						KeypointDetector.set_neighbor_count(ParameterHandler->get_detector_nn_at(neighbor));
 						KeypointDetector.calculateIssKeypoints(Target);
 						Target.keypoints = KeypointDetector.keypoints;
 						processing_times.push_back(time_meas("detecting keypoints"));
@@ -808,7 +686,7 @@ int main(int argc, char* argv[])
 						time_meas();
 						Matcher.queryDescriptor_ = Query.descriptors;
 						Matcher.targetDescriptor_ = Target.descriptors;
-						Matcher.calculateCorrespondences(matcher_distance_threshold, true);
+						Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold(), true);
 						processing_times.push_back(time_meas("matching"));
 
 						// Registration -> Output Preparation
@@ -820,13 +698,13 @@ int main(int argc, char* argv[])
 						Registrator.print_precision_recall();
 						std::string result = Registrator.get_result();
 
-						string pr_filename = pr_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+						string pr_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor
 							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
 						FileHandler.writeToFile(result, pr_filename);
 
-						if (match_retrieval) {
+						if (ParameterHandler->get_match_retrieval_state()) {
 							std::string matches;
-							if (ransac) {
+							if (ParameterHandler->get_ransac_state()) {
 								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Registrator.get_number_of_matches()) + "\n";
 							}
 							else {
@@ -834,17 +712,17 @@ int main(int argc, char* argv[])
 							}
 							FileHandler.writeToFile(matches, match_log_filename);
 						}
-						if (detection_stats) {
-							string stats_filename = stats_root + "/" + dataset + "/" + object + "/" + preprocessor_mode + "/" + descriptor
+						if (ParameterHandler->get_detection_stats_state()) {
+							string stats_filename = stats_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor
 								+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";
 							std::string stats = create_writable_stats(processing_times);
 							FileHandler.writeToFile(stats, stats_filename);
 						}
-						if (detection_log) {
-							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((Registrator.get_number_of_tp() >= detection_threshold)) + "\n";
+						if (ParameterHandler->get_detection_logging_state()) {
+							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((Registrator.get_number_of_tp() >= ParameterHandler->get_detection_threshold())) + "\n";
 							FileHandler.writeToFile(log, log_filename);
 						}
-						if (visu) {
+						if (ParameterHandler->get_visualization_state()) {
 							boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 							viewer->setBackgroundColor(0, 0, 0);
 							viewer->initCameraParameters();
@@ -888,17 +766,14 @@ int main(int argc, char* argv[])
 								std::this_thread::sleep_for(100ms);
 							}
 						}
-						corr.clear();
 					}
 				}
 			}
 		}
 	}
 
-	//execution_params[3] = CLOUD PROCESSING
-	//if (std::get<1>(execution_params[3])) {
 	if (ParameterHandler->get_exec_param_state("processing")) {
-		if (background_removal) {
+		if (ParameterHandler->get_background_removal_state()) {
 			FileHandler.get_all_file_names(processing_directory, ".ply", processing_names);
 			string background_filename = processing_directory + "/" + processing_names[0].string();
 			int name_pos = background_filename.find((processing_names[0].string()), 0);
@@ -915,7 +790,7 @@ int main(int argc, char* argv[])
 				string identifier = get_identifier(filename, name_pos, extension_pos);
 				pcl::PointCloud<pcl::PointXYZ> scene;
 				FileHandler.load_ply_file(filename, scene.makeShared());
-				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(scene, background, background_removal_threshold);
+				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(scene, background, ParameterHandler->get_background_removal_threshold());
 				filename = processed_directory + "/" + processing_names[i].string();
 				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 				pcl::io::savePLYFileASCII(substr, processed_cloud);

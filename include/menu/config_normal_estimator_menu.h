@@ -26,7 +26,7 @@ public:
         {
         case 'S':
         {
-            set_ne_scalefactor(std::stoi(get_input()));
+            parameter_handler->set_ne_scalefactor(std::stoi(get_input()));
         }
         break;
         case 'R':

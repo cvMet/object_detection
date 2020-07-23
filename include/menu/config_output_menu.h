@@ -32,25 +32,25 @@ public:
         {
         case 'S':
         {
-            std::cout << "statistics state: " << std::to_string(toggle_detection_stats()) << std::endl;
+            std::cout << "statistics state: " << std::to_string(parameter_handler->toggle_detection_stats()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
         case 'V':
         {
-            std::cout << "visualization state: " << std::to_string(toggle_visualization()) << std::endl;
+            std::cout << "visualization state: " << std::to_string(parameter_handler->toggle_visualization()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
         case 'L':
         {
-            std::cout << "logging state: " << std::to_string(toggle_detection_logging()) << std::endl;
+            std::cout << "logging state: " << std::to_string(parameter_handler->toggle_detection_logging()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
         case 'M':
         {
-            std::cout << "match_retrieval state: " << std::to_string(toggle_match_retrieval()) << std::endl;
+            std::cout << "match_retrieval state: " << std::to_string(parameter_handler->toggle_match_retrieval()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;

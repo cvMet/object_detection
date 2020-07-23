@@ -29,17 +29,17 @@ public:
         {
         case 'D':
         {
-            set_dataset(get_input());
+            parameter_handler->set_dataset(get_input());
         }
         break;
         case 'O':
         {
-            set_object(get_input());
+            parameter_handler->set_object(get_input());
         }
         break;
         case 'P':
         {
-            set_preprocessor(get_input());
+            parameter_handler->set_preprocessor_mode(get_input());
         }
         case 'R':
         {

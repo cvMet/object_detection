@@ -35,12 +35,12 @@ public:
         {
         case 'D':
         {
-            set_dataset(get_input());
+            parameter_handler->set_dataset(get_input());
         }
         break;
         case 'O':
         {
-            set_object(get_input());
+            parameter_handler->set_object(get_input());
         }
         break;
         case 'F':
@@ -50,7 +50,7 @@ public:
         break;
         case 'S':
         {
-            std::cout << "statistics state: " << std::to_string(toggle_cloudgen_stats()) << std::endl;
+            std::cout << "statistics state: " << std::to_string(parameter_handler->toggle_cloudgen_stats()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;

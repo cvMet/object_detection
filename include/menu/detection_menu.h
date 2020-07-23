@@ -38,7 +38,7 @@ public:
         {
         case 'T':
         {
-            set_detection_threshold(std::stoi(get_input()));
+            parameter_handler->set_detection_threshold(std::stoi(get_input()));
         }
         break;
         case 'I':

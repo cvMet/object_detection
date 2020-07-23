@@ -27,13 +27,13 @@ public:
         {
         case 'A':
         {
-            std::cout << "RANSAC state: " << std::to_string(toggle_ransac()) << std::endl;
+            std::cout << "RANSAC state: " << std::to_string(parameter_handler->toggle_ransac()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
         case 'T':
         {
-            set_matcher_distance_threshold(std::stof(get_input().substr(0, 5)));
+            parameter_handler->set_matcher_distance_threshold(std::stof(get_input().substr(0, 5)));
         }
         break;
         case 'R':

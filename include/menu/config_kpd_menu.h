@@ -27,12 +27,12 @@ public:
         {
         case 'T':
         {
-            add_detector_threshold(std::stof(get_input().substr(0, 5)));
+            parameter_handler->add_detector_threshold(std::stof(get_input().substr(0, 5)));
         }
         break;
         case 'N':
         {
-            add_detector_nn(std::stoi(get_input()));
+            parameter_handler->add_detector_nn(std::stoi(get_input()));
         }
         break;
         case 'R':

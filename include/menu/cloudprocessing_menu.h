@@ -31,12 +31,12 @@ public:
         {
         case 'T':
         {
-            set_background_removal_threshold(std::stof(get_input().substr(0, 5)));
+            parameter_handler->set_background_removal_threshold(std::stof(get_input().substr(0, 5)));
         }
         break;
         case 'B':
         {
-            std::cout << "background_removal state: " << std::to_string(toggle_background_removal()) << std::endl;
+            std::cout << "background_removal state: " << std::to_string(parameter_handler->toggle_background_removal()) << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         break;
