@@ -115,53 +115,6 @@ const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
 #endif
 
-Eigen::Matrix4f get_ransac_transformation_matrix(pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ>& RansacRejector) {
-	cout << "# Iterations: " << RansacRejector.getMaximumIterations() << endl;
-	Eigen::Matrix4f mat = RansacRejector.getBestTransformation();
-	cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << mat << endl;
-	// int ransac_corr = corr.size();
-	return mat;
-}
-
-Eigen::Matrix4f icp(pcl::PointCloud<PointType> query, pcl::PointCloud<PointType> target) {
-	Eigen::Matrix4f mat;
-	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-	icp.setInputSource(query.makeShared());
-	icp.setInputTarget(target.makeShared());
-	pcl::PointCloud<pcl::PointXYZ> aligned_cloud;
-	icp.align(aligned_cloud);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-	std::cout << icp.getFinalTransformation() << std::endl;
-	mat << icp.getFinalTransformation();
-	return mat;
-}
-
-pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances) {
-	pcl::Correspondences temp;
-	for (int i = 0; i < euclidean_distances.size(); ++i) {
-		if (euclidean_distances[i] < distance_threshold) {
-			temp.push_back(corr.at(i));
-		}
-		else {
-			std::cout << "FP @ " + to_string(corr.at(i).index_match) << endl;
-		}
-	}
-	return temp;
-}
-
-pcl::Correspondences get_true_positives(float& distance_threshold, std::vector<float>& euclidean_distances, pcl::Correspondences corresp) {
-	pcl::Correspondences temp;
-	for (int i = 0; i < corresp.size(); ++i) {
-		if (euclidean_distances[i] < distance_threshold) {
-			temp.push_back(corresp.at(i));
-		}
-		else {
-			std::cout << "FP @ " + to_string(corresp.at(i).index_match) << endl;
-		}
-	}
-	return temp;
-}
-
 std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction_save_ordered_output(pcl::PointCloud<PointXYZ> input_cloud, string filename) {
 	// Creating the KdTree object for the search method of the extraction
 	vector<pcl::PointCloud<PointXYZ>> clusters;
@@ -258,32 +211,6 @@ std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction(pcl::PointCl
 	return clusters;
 }
 
-std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> query_keypoints, const pcl::PointCloud<pcl::PointXYZ> target_keypoints) {
-	std::vector<float> distance;
-	for (int i = 0; i < corr.size(); ++i) {
-		distance.push_back(
-			pow((query_keypoints.at(corr.at(i).index_query).x - target_keypoints.at(corr.at(i).index_match).x), 2) +
-			pow((query_keypoints.at(corr.at(i).index_query).y - target_keypoints.at(corr.at(i).index_match).y), 2) +
-			pow((query_keypoints.at(corr.at(i).index_query).z - target_keypoints.at(corr.at(i).index_match).z), 2)
-		);
-		distance[i] = sqrt(distance[i]);
-	}
-	return distance;
-}
-
-std::vector<float> calculate_euclidean_distance(const pcl::PointCloud<pcl::PointXYZ> query_keypoints, const pcl::PointCloud<pcl::PointXYZ> target_keypoints, pcl::Correspondences corresp) {
-	std::vector<float> distance;
-	for (int i = 0; i < corresp.size(); ++i) {
-		distance.push_back(
-			pow((query_keypoints.at(corresp.at(i).index_query).x - target_keypoints.at(corresp.at(i).index_match).x), 2) +
-			pow((query_keypoints.at(corresp.at(i).index_query).y - target_keypoints.at(corresp.at(i).index_match).y), 2) +
-			pow((query_keypoints.at(corresp.at(i).index_query).z - target_keypoints.at(corresp.at(i).index_match).z), 2)
-		);
-		distance[i] = sqrt(distance[i]);
-	}
-	return distance;
-}
-
 std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 	vector<double> angles;
 	double neg_sinTheta = transformation_matrix(2, 0);
@@ -335,26 +262,6 @@ std::string create_writable_angles(vector<tuple<string, vector<double>>> angles)
 		for (int j = 0; j < get<1>(angles[i]).size(); ++j) {
 			data += std::to_string(get<1>(angles[i])[j]) + ',';
 		};
-		data += "\n";
-	}
-	return data;
-}
-
-std::string concatenate_distances(std::vector<float>& euclidean_distance) {
-	std::string data = "";
-	for (int i = 0; i < corr.size(); ++i)
-	{
-		data += std::to_string(corr.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
-		data += "\n";
-	}
-	return data;
-}
-
-std::string concatenate_distances(std::vector<float>& euclidean_distance, pcl::Correspondences corresp) {
-	std::string data = "";
-	for (int i = 0; i < corresp.size(); ++i)
-	{
-		data += std::to_string(corresp.at(i).distance) + ',' + std::to_string(euclidean_distance[i]);
 		data += "\n";
 	}
 	return data;
@@ -504,23 +411,6 @@ bool toggle_visualization() {
 	return visu;
 }
 
-void ransac_rejection(pcl::Correspondences corresp, pcl::PointCloud<pcl::PointXYZ> queryKeypoints, pcl::PointCloud<pcl::PointXYZ> targetKeypoints, pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ>& RansacRejector) {
-	if (corresp.size() > 0) {
-		pcl::CorrespondencesConstPtr correspond = boost::make_shared<pcl::Correspondences>(corresp);
-		RansacRejector.setInputSource(queryKeypoints.makeShared());
-		RansacRejector.setInputTarget(targetKeypoints.makeShared());
-		//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
-		RansacRejector.setInlierThreshold(0.005);
-		RansacRejector.setInputCorrespondences(correspond);
-		RansacRejector.getCorrespondences(corr);
-		std::cout << "# Correspondences found after RANSAC: " << corr.size() << endl;
-	}
-	else {
-		corr.clear();
-		std::cout << "passed empty corresp vector to RANSAC" << endl;
-	}
-}
-
 void time_meas() {
 	double cpuTimeUsed;
 	if (!running) {
@@ -534,11 +424,6 @@ void time_meas() {
 		std::cout << "Time taken: " << (double)cpuTimeUsed << std::endl;
 	}
 }
-
-void print_results(pcl::Correspondences& true_positives, pcl::PointCloud<PointXYZ> queryKeypoints_) {
-	std::cout << "TP: " << true_positives.size() << ", FP: " << corr.size() - true_positives.size() << endl;
-	std::cout << "Precision: " << (float)true_positives.size() / (float)corr.size() << " Recall: " << true_positives.size() / (float)(queryKeypoints_.size()) << endl;
-};
 
 void set_dataset(string dataset_name) {
 	dataset = dataset_name;
@@ -756,23 +641,11 @@ int main(int argc, char* argv[])
 			Matcher.targetDescriptor_ = Target.descriptors;
 			Matcher.calculateCorrespondences(matcher_distance_threshold, true);
 
-			// RANSAC based Correspondence Rejection with ICP, default iterations = 1000, default threshold = 0.05
-			RansacRejector.setMaximumIterations(1000);
-			ransac_rejection(Matcher.corresp, Query.keypoints, Target.keypoints, RansacRejector);
-			Eigen::Matrix4f ransac_transformation = get_ransac_transformation_matrix(RansacRejector);
-			pcl::transformPointCloud(*Query.cloud, *temp_cloud, ransac_transformation);
-
-			pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-			icp.setMaximumIterations(30);
-			icp.setRANSACOutlierRejectionThreshold(0.005);
-			icp.setTransformationEpsilon(1e-9);
-			icp.setInputSource(temp_cloud);
-			icp.setInputTarget(Target.cloud);
-			icp.align(*aligned_cloud);
-			Eigen::Matrix4f icp_transformation;
-			icp_transformation = icp.getFinalTransformation();
-			std::cout << icp_transformation << std::endl;
-
+			Registrator Registrator(Query, Target, Matcher.corresp);
+			Registrator.set_distance_threshold(supportRadius_* Query.resolution / 2);
+			Registrator.init_RANSAC();
+			Eigen::Matrix4f ransac_transformation = Registrator.do_ransac();
+			Eigen::Matrix4f icp_transformation = Registrator.do_icp();
 			//Add inverse of transformation matrices to corresponding vector to enable target-to-source transformation
 			transformation_matrices.push_back(make_tuple(ransac_transformation.inverse(), icp_transformation.inverse()));
 		}
