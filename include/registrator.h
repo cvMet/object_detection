@@ -2,6 +2,8 @@
 #include <pcl/point_cloud.h>
 #include "scene.h"
 
+constexpr auto RANSAC_MIN_MATCHES = (3);
+
 class Registrator {
 private:
 	Scene* Query;
