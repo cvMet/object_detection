@@ -60,6 +60,15 @@ public:
 		return temp_cloud;
 	}
 
+	bool path_valid(std::string path) {
+		if (!boost::filesystem::exists(path))
+		{
+			std::cout << "Path entered was not valid!" << std::endl;
+			return false;
+		}
+		return true;
+	}
+
 	void load_ply_file(std::string filename, pcl::PointCloud<PointXYZ>::Ptr cloud) {
 		if (pcl::io::loadPLYFile(filename, *cloud) == -1)
 		{

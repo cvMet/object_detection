@@ -44,10 +44,6 @@ namespace fs = boost::filesystem;
 using namespace std;
 using namespace pcl;
 
-//Typedefs
-typedef pcl::PointXYZINormal PointTypeFull;
-typedef pcl::PointXYZI PointTypeIO;
-
 #ifndef isshot
 #define isshot 1	//For SHOT-Descriptor use 1 for FPFH 0
 #endif
@@ -98,102 +94,6 @@ string descriptor = "B_SHOT";
 const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
 #endif
-
-std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction_save_ordered_output(pcl::PointCloud<PointXYZ> input_cloud, string filename) {
-	// Creating the KdTree object for the search method of the extraction
-	vector<pcl::PointCloud<PointXYZ>> clusters;
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-	tree->setInputCloud(input_cloud.makeShared());
-
-	std::vector<pcl::PointIndices> cluster_indices;
-	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance(0.005);
-	ec.setMinClusterSize(500);
-	ec.setMaxClusterSize(5000);
-	ec.setSearchMethod(tree);
-	ec.setInputCloud(input_cloud.makeShared());
-	ec.extract(cluster_indices);
-
-	int j = 0;
-	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
-	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
-			cloud_cluster->points.push_back(input_cloud.points[*pit]); //*
-		}
-		cloud_cluster->width = cloud_cluster->points.size();
-		cloud_cluster->height = 1;
-		cloud_cluster->is_dense = true;
-
-		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
-		clusters.push_back(*cloud_cluster);
-		string substr = filename.substr(0, (filename.length() - 4)) + "cluster_" + to_string(j) + ".ply";
-		pcl::io::savePLYFileASCII(substr, *cloud_cluster);
-		j++;
-	}
-
-	return clusters;
-}
-
-std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction_ordered_output(pcl::PointCloud<PointXYZ> input_cloud) {
-	// Creating the KdTree object for the search method of the extraction
-	vector<pcl::PointCloud<PointXYZ>> clusters;
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-	tree->setInputCloud(input_cloud.makeShared());
-
-	std::vector<pcl::PointIndices> cluster_indices;
-	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance(0.005);
-	ec.setMinClusterSize(500);
-	ec.setMaxClusterSize(5000);
-	ec.setSearchMethod(tree);
-	ec.setInputCloud(input_cloud.makeShared());
-	ec.extract(cluster_indices);
-
-	int j = 0;
-	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
-	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>(320, 240));
-		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
-			cloud_cluster->points[*pit] = (input_cloud.points[*pit]);
-		}
-		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
-		clusters.push_back(*cloud_cluster);
-		j++;
-	}
-
-	return clusters;
-}
-
-std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction(pcl::PointCloud<PointXYZ> input_cloud) {
-	// Creating the KdTree object for the search method of the extraction
-	vector<pcl::PointCloud<PointXYZ>> clusters;
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-	tree->setInputCloud(input_cloud.makeShared());
-	std::vector<pcl::PointIndices> cluster_indices;
-	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance(0.005);
-	ec.setMinClusterSize(500);
-	ec.setMaxClusterSize(5000);
-	ec.setSearchMethod(tree);
-	ec.setInputCloud(input_cloud.makeShared());
-	ec.extract(cluster_indices);
-	int j = 0;
-	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
-	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
-			cloud_cluster->points.push_back(input_cloud.points[*pit]); //*
-		}
-		cloud_cluster->width = cloud_cluster->points.size();
-		cloud_cluster->height = 1;
-		cloud_cluster->is_dense = true;
-		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
-		clusters.push_back(*cloud_cluster);
-		j++;
-	}
-	return clusters;
-}
 
 std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 	vector<double> angles;
@@ -303,53 +203,6 @@ int value_between_seperator(string& str, string seperator, int pos) {
 	return temp;
 }
 
-bool enforceIntensitySimilarity(const pcl::PointXYZI& point_a, const pcl::PointXYZI& point_b, float squared_distance)
-{
-	if (std::abs(point_a.intensity - point_b.intensity) < 0.1f)
-		return (true);
-	else
-		return (false);
-}
-
-bool enforceCurvatureOrIntensitySimilarity(const PointTypeFull& point_a, const PointTypeFull& point_b, float squared_distance)
-{
-	Eigen::Map<const Eigen::Vector3f> point_a_normal = point_a.getNormalVector3fMap(), point_b_normal = point_b.getNormalVector3fMap();
-	if (std::abs(point_a.intensity - point_b.intensity) < 5.0f)
-		return (true);
-	if (std::abs(point_a_normal.dot(point_b_normal)) < 0.05)
-		return (true);
-	return (false);
-}
-
-bool customRegionGrowing(const PointTypeFull& point_a, const PointTypeFull& point_b, float squared_distance)
-{
-	Eigen::Map<const Eigen::Vector3f> point_a_normal = point_a.getNormalVector3fMap(), point_b_normal = point_b.getNormalVector3fMap();
-	if (squared_distance < 10000)
-	{
-		if (std::abs(point_a.intensity - point_b.intensity) < 8.0f)
-			return (true);
-		if (std::abs(point_a_normal.dot(point_b_normal)) < 0.06)
-			return (true);
-	}
-	else
-	{
-		if (std::abs(point_a.intensity - point_b.intensity) < 3.0f)
-			return (true);
-	}
-	return (false);
-}
-
-bool get_path() {
-	string path;
-	cin >> path;
-	if (!boost::filesystem::exists(path))
-	{
-		std::cout << "Path entered was not valid!" << std::endl;
-		return false;
-	}
-	return true;
-}
-
 void time_meas() {
 	double cpuTimeUsed;
 	if (!running) {
@@ -418,7 +271,7 @@ int main(int argc, char* argv[])
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 		if (ParameterHandler->get_filter_state("median")) {
-			background_cloud = CloudCreator.median_filter_cloud(background_cloud, 5);
+			background_cloud = CloudCreator.median_filter(background_cloud, 5);
 		}
 		//Pop first element (background without query)
 		depth_names.erase(depth_names.begin());
@@ -434,7 +287,7 @@ int main(int argc, char* argv[])
 			//If median filtering enabled
 			if (ParameterHandler->get_filter_state("median")) {
 				time_meas();
-				query_cloud = CloudCreator.median_filter_cloud(query_cloud, 5);
+				query_cloud = CloudCreator.median_filter(query_cloud, 5);
 				creation_stats.push_back(time_meas("time_medianfilter"));
 			}
 			time_meas();
@@ -523,7 +376,7 @@ int main(int argc, char* argv[])
 			//Matching
 			Matcher.queryDescriptor_ = Query.descriptors;
 			Matcher.targetDescriptor_ = Target.descriptors;
-			Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold(), true);
+			Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold());
 
 			Registrator Registrator(Query, Target, Matcher.corresp);
 			Registrator.set_distance_threshold(supportRadius_* Query.resolution / 2);
@@ -607,8 +460,6 @@ int main(int argc, char* argv[])
 					KeypointDetector QueryKeypointDetector;
 					Descriptor QueryDescriber;
 
-					std::string log_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor + "/log.csv";
-					std::string match_log_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor + "/match_log.csv";
 					std::string query_filename = query_directory + "/" + query_names[query_number].string();
 					int name_pos_query = query_filename.find((query_names[query_number].string()), 0);
 					int ext_pos_query = query_filename.find(".ply", 0);
@@ -686,7 +537,7 @@ int main(int argc, char* argv[])
 						time_meas();
 						Matcher.queryDescriptor_ = Query.descriptors;
 						Matcher.targetDescriptor_ = Target.descriptors;
-						Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold(), true);
+						Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold());
 						processing_times.push_back(time_meas("matching"));
 
 						// Registration -> Output Preparation
@@ -698,28 +549,46 @@ int main(int argc, char* argv[])
 						Registrator.print_precision_recall();
 						std::string result = Registrator.get_result();
 
-						string pr_filename = pr_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor
-							+ "/" + query_identifier + "_to_" + target_identifier + ".csv";
+						string pr_filename = pr_root 
+							+ "/" + ParameterHandler->get_dataset() 
+							+ "/" + ParameterHandler->get_object() 
+							+ "/" + ParameterHandler->get_preprocessor_mode() 
+							+ "/" + descriptor
+							+ "/" + Query.identifier + "_to_" + Target.identifier + ".csv";
 						FileHandler.writeToFile(result, pr_filename);
 
 						if (ParameterHandler->get_match_retrieval_state()) {
 							std::string matches;
+							std::string match_log_filename = pr_root + "/"
+								+ ParameterHandler->get_dataset() + "/"
+								+ ParameterHandler->get_object() + "/"
+								+ ParameterHandler->get_preprocessor_mode() + "/"
+								+ descriptor + "/match_log.csv";
 							if (ParameterHandler->get_ransac_state()) {
-								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Registrator.get_number_of_matches()) + "\n";
+								matches = Query.identifier + "_to_" + Target.identifier + "," + std::to_string(Registrator.get_number_of_matches()) + "\n";
 							}
 							else {
-								matches = query_identifier + "_to_" + target_identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";
+								matches = Query.identifier + "_to_" + Target.identifier + "," + std::to_string(Matcher.corresp.size()) + "\n";
 							}
 							FileHandler.writeToFile(matches, match_log_filename);
 						}
 						if (ParameterHandler->get_detection_stats_state()) {
-							string stats_filename = stats_root + "/" + ParameterHandler->get_dataset() + "/" + ParameterHandler->get_object() + "/" + ParameterHandler->get_preprocessor_mode() + "/" + descriptor
-								+ "/" + query_identifier + "_to_" + target_identifier + "_stats.csv";
+							string stats_filename = stats_root + "/" 
+								+ ParameterHandler->get_dataset() + "/" 
+								+ ParameterHandler->get_object() + "/" 
+								+ ParameterHandler->get_preprocessor_mode() 
+								+ "/" + descriptor
+								+ "/" + Query.identifier + "_to_" + Target.identifier + "_stats.csv";
 							std::string stats = create_writable_stats(processing_times);
 							FileHandler.writeToFile(stats, stats_filename);
 						}
 						if (ParameterHandler->get_detection_logging_state()) {
-							std::string log = query_identifier + "_to_" + target_identifier + "," + std::to_string((Registrator.get_number_of_tp() >= ParameterHandler->get_detection_threshold())) + "\n";
+							std::string log_filename = pr_root
+								+ "/" + ParameterHandler->get_dataset()
+								+ "/" + ParameterHandler->get_object()
+								+ "/" + ParameterHandler->get_preprocessor_mode()
+								+ "/" + descriptor + "/log.csv";
+							std::string log = Query.identifier + "_to_" + Target.identifier + "," + std::to_string((Registrator.get_number_of_tp() >= ParameterHandler->get_detection_threshold())) + "\n";
 							FileHandler.writeToFile(log, log_filename);
 						}
 						if (ParameterHandler->get_visualization_state()) {

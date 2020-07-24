@@ -30,7 +30,7 @@ public:
 	std::vector<bshot_descriptor> queryDescriptor_;
 	std::vector<bshot_descriptor> targetDescriptor_;
 
-	void calculateCorrespondences(float threshold, bool new_version) {
+	void calculateCorrespondences(float threshold) {
 #if isshot
 		int maxSize = std::max(queryDescriptor_.size(), targetDescriptor_.size());
 		int* dist = new int[maxSize];

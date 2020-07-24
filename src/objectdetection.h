@@ -7,7 +7,6 @@
 //General
 void time_meas(void);
 std::string get_input(void);
-bool get_path(void);
 //void set_execution_param(std::string);
 //Cloudgen
 

@@ -36,8 +36,11 @@
 
 class CloudCreator
 {
-public:
+private:
 	const int rows = 240, columns = 320;
+
+public:
+	
 	//distance array values must be in [mm], x_pixel = pixel width [mm], y_pixel = pixel height [mm], f = focal length of camera [mm]
 	pcl::PointCloud<pcl::PointXYZ> distance_array_to_cloud(std::vector<std::vector<float>> distance_array, float f, float x_pixel, float y_pixel)
 	{
@@ -130,7 +133,7 @@ public:
 		return output;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ> median_filter_cloud(pcl::PointCloud<pcl::PointXYZ> cloud, int window_size) {
+	pcl::PointCloud<pcl::PointXYZ> median_filter(pcl::PointCloud<pcl::PointXYZ> cloud, int window_size) {
 		pcl::MedianFilter<pcl::PointXYZ> median;
 		pcl::PointCloud<pcl::PointXYZ> finalCloud;
 		median.setInputCloud(cloud.makeShared());
@@ -200,6 +203,66 @@ public:
 		pass.filter(cloud);
 		return cloud;
 	}
+
+	std::vector<pcl::PointCloud<PointXYZ>> ordered_euclidean_cluster_extraction(pcl::PointCloud<PointXYZ>::Ptr input_cloud) {
+		// Creating the KdTree object for the search method of the extraction
+		vector<pcl::PointCloud<PointXYZ>> clusters;
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+		tree->setInputCloud(input_cloud);
+
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance(0.005);
+		ec.setMinClusterSize(500);
+		ec.setMaxClusterSize(5000);
+		ec.setSearchMethod(tree);
+		ec.setInputCloud(input_cloud);
+		ec.extract(cluster_indices);
+
+		int j = 0;
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+		{
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>(320, 240));
+			for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
+				cloud_cluster->points[*pit] = (input_cloud->points[*pit]);
+			}
+			std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+			clusters.push_back(*cloud_cluster);
+			j++;
+		}
+
+		return clusters;
+	}
+
+	std::vector<pcl::PointCloud<PointXYZ>> euclidean_cluster_extraction(pcl::PointCloud<PointXYZ>::Ptr input_cloud) {
+		// Creating the KdTree object for the search method of the extraction
+		vector<pcl::PointCloud<PointXYZ>> clusters;
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+		tree->setInputCloud(input_cloud);
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance(0.005);
+		ec.setMinClusterSize(500);
+		ec.setMaxClusterSize(5000);
+		ec.setSearchMethod(tree);
+		ec.setInputCloud(input_cloud);
+		ec.extract(cluster_indices);
+		int j = 0;
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+		{
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+			for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
+				cloud_cluster->points.push_back(input_cloud->points[*pit]); //*
+			}
+			cloud_cluster->width = cloud_cluster->points.size();
+			cloud_cluster->height = 1;
+			cloud_cluster->is_dense = true;
+			std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+			clusters.push_back(*cloud_cluster);
+			j++;
+		}
+		return clusters;
+	}
 	
 	float compute_cloud_resolution(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud)
 	{
@@ -231,6 +294,45 @@ public:
 		}
 		std::cout << "Resolution: " << res << endl;
 		return res;
+	}
+
+	//Can be used as conditional clustering criteria
+	bool enforceIntensitySimilarity(const pcl::PointXYZI& point_a, const pcl::PointXYZI& point_b, float squared_distance)
+	{
+		if (std::abs(point_a.intensity - point_b.intensity) < 0.1f)
+			return (true);
+		else
+			return (false);
+	}
+
+	//Can be used as conditional clustering criteria
+	bool enforceCurvatureOrIntensitySimilarity(const PointXYZINormal& point_a, const PointXYZINormal& point_b, float squared_distance)
+	{
+		Eigen::Map<const Eigen::Vector3f> point_a_normal = point_a.getNormalVector3fMap(), point_b_normal = point_b.getNormalVector3fMap();
+		if (std::abs(point_a.intensity - point_b.intensity) < 5.0f)
+			return (true);
+		if (std::abs(point_a_normal.dot(point_b_normal)) < 0.05)
+			return (true);
+		return (false);
+	}
+
+	//Can be used as conditional clustering criteria
+	bool customRegionGrowing(const PointXYZINormal& point_a, const PointXYZINormal& point_b, float squared_distance)
+	{
+		Eigen::Map<const Eigen::Vector3f> point_a_normal = point_a.getNormalVector3fMap(), point_b_normal = point_b.getNormalVector3fMap();
+		if (squared_distance < 10000)
+		{
+			if (std::abs(point_a.intensity - point_b.intensity) < 8.0f)
+				return (true);
+			if (std::abs(point_a_normal.dot(point_b_normal)) < 0.06)
+				return (true);
+		}
+		else
+		{
+			if (std::abs(point_a.intensity - point_b.intensity) < 3.0f)
+				return (true);
+		}
+		return (false);
 	}
 
 	void get_cloud_size(pcl::PointCloud<pcl::PointXYZ> cloud) {
