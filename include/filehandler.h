@@ -77,11 +77,16 @@ public:
 	}
 
 	void writeToFile(std::string data, string filename) {
-		ofstream myfile;
-		myfile.open(filename, std::ofstream::app);
-		myfile << data;
-		myfile.close();
-		std::cout << "Writing to File succeeded." << endl;
+		if (path_valid(filename)) {
+			ofstream myfile;
+			myfile.open(filename, std::ofstream::app);
+			myfile << data;
+			myfile.close();
+			std::cout << "Writing to File succeeded." << endl;
+		}
+		else {
+			std::cout << "Writing to File did not succeeded." << endl;
+		}
 	}
 
 	void get_all_file_names(const fs::path& root, const string& ext, vector<fs::path>& ret)
