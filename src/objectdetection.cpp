@@ -37,6 +37,7 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include "../include/menu/merge_menu.h"
 #include "../include/registrator.h"
 #include "../include/parameter_handler.h"
+#include "../include/measure.h"
 #include "objectdetection.h"
 
 //Namespaces
@@ -59,12 +60,9 @@ Params used during cloudgen & objectdetection
 std::vector<tuple<bshot_descriptor, int>> learned_descriptors;
 std::vector<tuple<string, vector<double>>> angles;
 
-std::clock_t start, end_time;
 float shotRadius_ = 30;
 float fpfhRadius_ = 20;
-
 const int rows = 240, columns = 320;
-bool running = false;
 bool query_learning = false;
 
 //Paths used during objectdetection
@@ -113,30 +111,6 @@ std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
 	std::cout << "psi: " << (double)psi << std::endl;
 	return angles;
 
-}
-
-std::tuple<string, float> time_meas(string action) {
-	double cpuTimeUsed;
-	if (!running) {
-		running = true;
-		start = clock();
-	}
-	else {
-		end_time = clock();
-		running = false;
-		cpuTimeUsed = ((double)end_time - (double)start) / CLOCKS_PER_SEC;
-		std::cout << "Time taken for: " + action + " " << (double)cpuTimeUsed << std::endl;
-	}
-	return make_tuple(action, cpuTimeUsed);
-}
-
-std::string create_writable_stats(vector<tuple<string, float>> stats) {
-	std::string data = "";
-	for (int i = 0; i < stats.size(); ++i) {
-		data += get<0>(stats[i]) + ',' + std::to_string(get<1>(stats[i]));
-		data += "\n";
-	}
-	return data;
 }
 
 std::string create_writable_angles(vector<tuple<string, vector<double>>> angles) {
@@ -203,20 +177,6 @@ int value_between_seperator(string& str, string seperator, int pos) {
 	return temp;
 }
 
-void time_meas() {
-	double cpuTimeUsed;
-	if (!running) {
-		running = true;
-		start = clock();
-	}
-	else {
-		end_time = clock();
-		running = false;
-		cpuTimeUsed = ((double)(end_time - start)) / CLOCKS_PER_SEC;
-		std::cout << "Time taken: " << (double)cpuTimeUsed << std::endl;
-	}
-}
-
 void set_query_learning() {
 	query_learning = true;
 }
@@ -225,6 +185,7 @@ int main(int argc, char* argv[])
 {
 	FileHandler FileHandler;
 	CloudCreator CloudCreator;
+	Measure PerformanceTester;
 	ParameterHandler PH;
 	ParameterHandler* ParameterHandler = &PH;
 	BaseMenu* CurrentMenu = new MainMenu(ParameterHandler);
@@ -278,37 +239,38 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < depth_names.size(); ++i) {
 			vector<tuple<string, float>> creation_stats;
 			std::string query_depth_filename = depth_directory + "/" + depth_names[i].string();
-			time_meas();
+			PerformanceTester.time_meas();
 			std::vector<std::vector<float>> query_distance_array = FileHandler.melexis_txt_to_distance_array(query_depth_filename, rows, columns);
-			creation_stats.push_back(time_meas("time_textToDistance"));
-			time_meas();
+			PerformanceTester.time_meas("time_textToDistance");
+			PerformanceTester.time_meas();
 			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
-			creation_stats.push_back(time_meas("time_distanceToCloud"));
+			PerformanceTester.time_meas("time_distanceToCloud");
 			//If median filtering enabled
 			if (ParameterHandler->get_filter_state("median")) {
-				time_meas();
+				PerformanceTester.time_meas();
 				query_cloud = CloudCreator.median_filter(query_cloud, 5);
-				creation_stats.push_back(time_meas("time_medianfilter"));
+				PerformanceTester.time_meas("time_medianfilter");
 			}
-			time_meas();
+			PerformanceTester.time_meas();
 			final_cloud = CloudCreator.remove_background(query_cloud, background_cloud, 0.005f);
-			creation_stats.push_back(time_meas("time_backgroundRemoval"));
+			PerformanceTester.time_meas("time_backgroundRemoval");
 			if (ParameterHandler->get_filter_state("roi")) {
-				time_meas();
+				PerformanceTester.time_meas();
 				final_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.2f);
 				final_cloud = CloudCreator.roi_filter(final_cloud, "y", -0.2f, 0.2f);
-				creation_stats.push_back(time_meas("time_ROIfilter"));
+				PerformanceTester.time_meas("time_ROIfilter");
 			}
 			if (ParameterHandler->get_filter_state("sor")) {
-				time_meas();
+				PerformanceTester.time_meas();
 				final_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(), 10);
-				creation_stats.push_back(time_meas("time_SORfilter"));
+				PerformanceTester.time_meas("time_SORfilter");
 			}
 			string filename = cloud_directory + "/" + depth_names[i].string();
 			string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 			pcl::io::savePLYFileASCII(substr, final_cloud);
 			if (ParameterHandler->get_cloudgen_stats_state()) {
-				string statistics = create_writable_stats(creation_stats);
+				string statistics = PerformanceTester.get_stats();
+				PerformanceTester.clear_stats();
 				string stats_filename = filename.substr(0, (filename.length() - 4)) + "_stats.csv";
 				FileHandler.writeToFile(statistics, stats_filename);
 			}
@@ -512,33 +474,33 @@ int main(int argc, char* argv[])
 						Target.resolution = CloudCreator.compute_cloud_resolution(Target.cloud);
 
 						//Target Normal Estimation
-						time_meas();
+						PerformanceTester.time_meas();
 						NormalEstimator.calculateNormals(Target.resolution, Target.cloud);
 						NormalEstimator.removeNaNNormals(Target.cloud);
 						Target.normals = NormalEstimator.normals;
-						processing_times.push_back(time_meas("normal estimation"));
+						PerformanceTester.time_meas("normal estimation");
 
 						//Target Keypoint Detection
-						time_meas();
+						PerformanceTester.time_meas();
 						KeypointDetector.set_threshold(ParameterHandler->get_detector_threshold_at(threshold));
 						KeypointDetector.set_neighbor_count(ParameterHandler->get_detector_nn_at(neighbor));
 						KeypointDetector.calculateIssKeypoints(Target);
 						Target.keypoints = KeypointDetector.keypoints;
-						processing_times.push_back(time_meas("detecting keypoints"));
+						PerformanceTester.time_meas("detecting keypoints");
 
 						//Target Description
-						time_meas();
+						PerformanceTester.time_meas();
 						Describer.set_support_radius(supportRadius_);
 						Describer.calculateDescriptor(Target);
 						Target.descriptors = Describer.descriptors;
-						processing_times.push_back(time_meas("calculating descriptor"));
+						PerformanceTester.time_meas("calculating descriptor");
 
 						//Matching
-						time_meas();
+						PerformanceTester.time_meas();
 						Matcher.queryDescriptor_ = Query.descriptors;
 						Matcher.targetDescriptor_ = Target.descriptors;
 						Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold());
-						processing_times.push_back(time_meas("matching"));
+						PerformanceTester.time_meas("matching");
 
 						// Registration -> Output Preparation
 						Registrator Registrator(Query, Target, Matcher.corresp);
@@ -579,7 +541,8 @@ int main(int argc, char* argv[])
 								+ ParameterHandler->get_preprocessor_mode() 
 								+ "/" + descriptor
 								+ "/" + Query.identifier + "_to_" + Target.identifier + "_stats.csv";
-							std::string stats = create_writable_stats(processing_times);
+							std::string stats = PerformanceTester.get_stats();
+							PerformanceTester.clear_stats();
 							FileHandler.writeToFile(stats, stats_filename);
 						}
 						if (ParameterHandler->get_detection_logging_state()) {
