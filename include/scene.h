@@ -8,6 +8,7 @@ public:
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
 	pcl::PointCloud<pcl::Normal> normals;
 	pcl::PointCloud<pcl::PointXYZ> keypoints;
+	std::vector<int> keypoint_indices;
 	std::vector<bshot_descriptor> descriptors;
 	float resolution = 0.0f;
 	Scene(string name_, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_)

@@ -24,6 +24,19 @@ public:
 		threshold = value;
 	}
 
+	bool identical_point(pcl::PointXYZ point_ref, pcl::PointXYZ point_in) {
+		return((point_ref.x == point_in.x) && (point_ref.y == point_in.y) && (point_ref.z == point_in.z));
+	}
+
+	void calculate_keypoint_indices(Scene& scene) {
+		for (int i = 0; i < keypoints.size(); ++i) {
+			for (int j = 0; j < scene.cloud->size(); ++j) {
+				if (identical_point(keypoints.points.at(i), scene.cloud->points.at(j)))
+					scene.keypoint_indices.push_back(j);
+			}
+		}
+	}
+
 	//void  calculateVoxelgridKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, float leaf_size_model, float leaf_size_scene)
 	//{
 	//	// Find Keypoints on the input cloud
@@ -36,14 +49,13 @@ public:
 	//	voxelgrid.filter(targetKeypoints_);
 	//}
 
-	void calculateIssKeypoints(Scene scene) {
+	void calculateIssKeypoints(Scene& scene) {
 		//pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> issDetector;
 		issDetector.setNormals(scene.normals.makeShared());
 		//issDetector.setSearchMethod(tree);
 		issDetector.setSalientRadius(7*scene.resolution);
 		//nonMax radius set to 5mm since this is approx stddev of melexis camera
-		//issDetector.setNonMaxRadius(4 * resolution);
 		issDetector.setNonMaxRadius(0.005f);
 		issDetector.setThreshold21(threshold);
 		issDetector.setThreshold32(threshold);
