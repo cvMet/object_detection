@@ -63,6 +63,7 @@ public:
 		issDetector.setNumberOfThreads(4);
 		issDetector.setInputCloud(scene.cloud);
 		issDetector.compute(keypoints);
+		calculate_keypoint_indices(scene);
 		std::cout << "No. Keypoints: " << keypoints.size() << " of: " << scene.cloud->size() << std::endl;
 	}
 };

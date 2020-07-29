@@ -42,7 +42,7 @@ public:
 	void init_RANSAC() {
 		RansacRejector.setMaximumIterations(1000);
 		//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
-		RansacRejector.setInlierThreshold(0.005);
+		RansacRejector.setInlierThreshold(0.006);
 		RansacRejector.setInputSource(Query->keypoints.makeShared());
 		RansacRejector.setInputTarget(Target->keypoints.makeShared());
 		RansacRejector.setInputCorrespondences(boost::make_shared<pcl::Correspondences>(InputCorrespondences));
@@ -169,5 +169,9 @@ public:
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr get_icp_aligned_keypoints() {
 		return icp_aligned_keypoints;
+	}
+
+	pcl::Correspondences get_RANSAC_correspondences() {
+		return RANSACCorrespondences;
 	}
 };

@@ -38,6 +38,7 @@ additional parts were taken from PCL Tutorials or written by Joël Carlen, Studen
 #include "../include/registrator.h"
 #include "../include/parameter_handler.h"
 #include "../include/measure.h"
+#include "../include/pose_estimator.h"
 #include "objectdetection.h"
 
 //Namespaces
@@ -445,6 +446,7 @@ int main(int argc, char* argv[])
 					QueryKeypointDetector.set_neighbor_count(ParameterHandler->get_detector_nn_at(neighbor));
 					QueryKeypointDetector.calculateIssKeypoints(Query);
 					Query.keypoints = QueryKeypointDetector.keypoints;
+
 					//Query Description
 					QueryDescriber.set_support_radius(supportRadius_);
 					QueryDescriber.calculateDescriptor(Query);
@@ -510,6 +512,20 @@ int main(int argc, char* argv[])
 						Registrator.do_icp();
 						Registrator.print_precision_recall();
 						std::string result = Registrator.get_result();
+
+						//Get Pose Estimation
+						PoseEstimator PoseEstimator;
+						std::string estimates;
+						pcl::Correspondences corresp = Registrator.get_RANSAC_correspondences();
+						estimates = PoseEstimator.get_pose_estimation(Query, Target, corresp);
+						//estimates = PoseEstimator.get_rotation_estimates();
+						string filename = pr_root
+							+ "/" + ParameterHandler->get_dataset()
+							+ "/" + ParameterHandler->get_object()
+							+ "/" + ParameterHandler->get_preprocessor_mode()
+							+ "/" + descriptor
+							+ "/" + Query.identifier + "_to_" + Target.identifier + "_angle_test_ransac_degrees.csv";
+						FileHandler.writeToFile(estimates, filename);
 
 						string pr_filename = pr_root 
 							+ "/" + ParameterHandler->get_dataset() 
