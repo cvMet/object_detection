@@ -1,19 +1,3 @@
-//Disclaimer
-/*
-Parts of this code were taken from:
-https://github.com/saimanoj18/iros_bshot
-@INPROCEEDINGS{bshot_iros2015,
-author={S. M. Prakhya and Bingbing Liu and Weisi Lin},
-booktitle={Intelligent Robots and Systems (IROS), 2015 IEEE/RSJ International Conference on},
-title={B-SHOT: A binary feature descriptor for fast and efficient keypoint matching on 3D point clouds},
-year={2015},
-pages={1929-1934},
-doi={10.1109/IROS.2015.7353630},
-month={Sept},}
-
-additional parts were taken from PCL Tutorials or written by Joël Carlen, Student at the Lucerne University of Applied Sciences and Arts
-*/
-
 //Includes
 #include <iostream>
 #include <pcl/filters/median_filter.h>
@@ -71,6 +55,7 @@ string query_directory = "../../../../clouds/query_clouds";
 string target_directory = "../../../../clouds/target_clouds";
 string pr_root = "../../../../PR/Buch";
 string stats_root = "../../../../stats";
+string angles_root = "../../../../angles";
 vector<fs::path> query_names;
 vector<fs::path> target_names;
 //Paths used during merging
@@ -93,38 +78,6 @@ string descriptor = "B_SHOT";
 const float supportRadius_ = fpfhRadius_;
 string descriptor = "FPFH";
 #endif
-
-std::vector<double> get_angles(Eigen::Matrix4f transformation_matrix) {
-	vector<double> angles;
-	double neg_sinTheta = transformation_matrix(2, 0);
-	double sinPhicosTheta = transformation_matrix(2, 1);
-	double cosThetacosPsi = transformation_matrix(0, 0);
-
-	double theta = -asin(neg_sinTheta) * 180 / 3.14159265;
-	double phi = asin(sinPhicosTheta / cos((theta * 3.14159265 / 180))) * 180 / 3.14159265;
-	double psi = acos(cosThetacosPsi / cos((theta * 3.14159265 / 180))) * 180 / 3.14159265;
-
-	angles.push_back(theta);
-	angles.push_back(phi);
-	angles.push_back(psi);
-	std::cout << "theta: " << (double)theta << std::endl;
-	std::cout << "phi: " << (double)phi << std::endl;
-	std::cout << "psi: " << (double)psi << std::endl;
-	return angles;
-
-}
-
-std::string create_writable_angles(vector<tuple<string, vector<double>>> angles) {
-	std::string data = "";
-	for (int i = 0; i < angles.size(); ++i) {
-		data += get<0>(angles[i]) + ",";
-		for (int j = 0; j < get<1>(angles[i]).size(); ++j) {
-			data += std::to_string(get<1>(angles[i])[j]) + ',';
-		};
-		data += "\n";
-	}
-	return data;
-}
 
 std::string get_identifier(string filename, int name_pos, int extension_pos) {
 	return filename.substr(name_pos, (extension_pos - name_pos));
@@ -196,6 +149,7 @@ int main(int argc, char* argv[])
 	while (!quit && !execute)
 	{
 		CurrentMenu->clearScreen();
+		CurrentMenu->printLogo();
 		CurrentMenu->printFlavorText();
 		CurrentMenu->printText();
 
@@ -407,7 +361,6 @@ int main(int argc, char* argv[])
 	}
 
 	if (ParameterHandler->get_exec_param_state("detection")) {
-		//Clouds used during objectdetection
 		pcl::PointCloud<pcl::PointXYZ>::Ptr query(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr target(new pcl::PointCloud<pcl::PointXYZ>);
 		FileHandler.get_all_file_names(query_directory, ".ply", query_names);
@@ -512,29 +465,43 @@ int main(int argc, char* argv[])
 						Registrator.do_icp();
 						Registrator.print_precision_recall();
 						std::string result = Registrator.get_result();
-
-						//Get Pose Estimation
-						PoseEstimator PoseEstimator;
-						std::string estimates;
-						pcl::Correspondences corresp = Registrator.get_RANSAC_correspondences();
-						estimates = PoseEstimator.get_pose_estimation(Query, Target, corresp);
-						//estimates = PoseEstimator.get_rotation_estimates();
-						string filename = pr_root
+						string pr_filename = pr_root
 							+ "/" + ParameterHandler->get_dataset()
 							+ "/" + ParameterHandler->get_object()
 							+ "/" + ParameterHandler->get_preprocessor_mode()
 							+ "/" + descriptor
-							+ "/" + Query.identifier + "_to_" + Target.identifier + "_angle_test_ransac_degrees.csv";
-						FileHandler.writeToFile(estimates, filename);
-
-						string pr_filename = pr_root 
-							+ "/" + ParameterHandler->get_dataset() 
-							+ "/" + ParameterHandler->get_object() 
-							+ "/" + ParameterHandler->get_preprocessor_mode() 
-							+ "/" + descriptor
 							+ "/" + Query.identifier + "_to_" + Target.identifier + ".csv";
 						FileHandler.writeToFile(result, pr_filename);
 
+						if (ParameterHandler->get_pose_estimation_state()) {
+							PoseEstimator PoseEstimator;
+							std::string estimates;
+							string filename;
+							if (ParameterHandler->get_iss_frame_based_pose_estimation_state()) {
+								//Pose Estimation based on ISS Frames
+								pcl::Correspondences corresp = Registrator.get_RANSAC_correspondences();
+								estimates = PoseEstimator.get_pose_estimation(Query, Target, corresp);
+								filename = angles_root
+									+ "/" + ParameterHandler->get_dataset()
+									+ "/" + ParameterHandler->get_object()
+									+ "/" + ParameterHandler->get_preprocessor_mode()
+									+ "/" + descriptor
+									+ "/" + Query.identifier + "_to_" + Target.identifier + "_GNR_angles.csv";
+								FileHandler.writeToFile(estimates, filename);
+							}
+							if (ParameterHandler->get_transformation_matrices_based_pose_estimation_state()) {
+								//Pose Estimation based on RANSAC and ICP transformation matrices
+								Eigen::Matrix4f transformation = Registrator.get_transformation();
+								estimates = PoseEstimator.get_RANSAC_pose_estimation(transformation);
+								filename = angles_root
+									+ "/" + ParameterHandler->get_dataset()
+									+ "/" + ParameterHandler->get_object()
+									+ "/" + ParameterHandler->get_preprocessor_mode()
+									+ "/" + descriptor
+									+ "/" + Query.identifier + "_to_" + Target.identifier + "_RANSAC_GNR_angles.csv";
+								FileHandler.writeToFile(estimates, filename);
+							}
+						}
 						if (ParameterHandler->get_match_retrieval_state()) {
 							std::string matches;
 							std::string match_log_filename = pr_root + "/"
@@ -590,6 +557,12 @@ int main(int argc, char* argv[])
 								pcl::transformPointCloud(Query.keypoints, visu_query_keypoints, t);
 								pcl::transformPointCloud(*Query.cloud, visu_query, t);
 							}
+							pcl::Correspondences Correspondences = Registrator.get_RANSAC_correspondences();
+							if (Correspondences.size() >= RANSAC_MIN_MATCHES) {
+							}
+							else {
+								Correspondences = Matcher.corresp;
+							}
 							//Add query keypoints to visualizer
 							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(visu_query_keypoints.makeShared(), 200, 0, 0);
 							viewer->addPointCloud<pcl::PointXYZ>(visu_query_keypoints.makeShared(), red, "sample cloud1");
@@ -599,7 +572,7 @@ int main(int argc, char* argv[])
 							viewer->addPointCloud<pcl::PointXYZ>(Target.keypoints.makeShared(), blue, "sample cloud2");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
 							//add lines between the correspondences
-							viewer->addCorrespondences<pcl::PointXYZ>(visu_query_keypoints.makeShared(), Target.keypoints.makeShared(), Matcher.corresp, "correspondences");
+							viewer->addCorrespondences<pcl::PointXYZ>(visu_query_keypoints.makeShared(), Target.keypoints.makeShared(), Correspondences, "correspondences");
 							//add query points to visualizer
 							viewer->addPointCloud<pcl::PointXYZ>(visu_query.makeShared(), "sample cloud3");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");

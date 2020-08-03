@@ -28,6 +28,7 @@ public:
     }
 
     std::string get_pose_estimation(Scene& query, Scene& target, pcl::Correspondences corresp) {
+        angles.clear();
         set_matches(corresp);
         for (int i = 0; i < matches.size(); ++i) {
             //Calculate ISS Reference Frame for query point from collection of matches
@@ -43,7 +44,12 @@ public:
             angles.push_back(transformation_matrix_to_GNR_angles(rotation_estimates[i]));
         }
         return create_writable_angles(angles);
+    }
 
+    std::string get_RANSAC_pose_estimation(Eigen::Matrix4f transformation_matrix) {
+        angles.clear();
+        angles.push_back(ransac_matrix_to_GNR_angles(transformation_matrix));
+        return create_writable_angles(angles);
     }
 
     void getScatterMatrix(Scene& scene, const int& current_index, Eigen::Matrix3d& cov_m)
@@ -161,21 +167,46 @@ public:
 
     std::vector<double> transformation_matrix_to_GNR_angles(Eigen::Matrix3d transformation_matrix) {
         vector<double> angles;
-        double negSinTheta = transformation_matrix(0, 2);
-        double cosThetaSinPsi = transformation_matrix(0, 1);
-        double sinPhiCosTheta = transformation_matrix(1, 2);
+        double r31 = transformation_matrix(2, 0);
+        double r32 = transformation_matrix(2, 1);
+        double r33 = transformation_matrix(2, 2);
+        double r11 = transformation_matrix(0, 0);
+        double r21 = transformation_matrix(1, 0);
 
-        double theta = asin(-negSinTheta) * 180 / PI;
-        double psi = asin(cosThetaSinPsi / (cos((theta * PI / 180))));
-        double phi = asin(sinPhiCosTheta / (cos((theta * PI / 180))));
+        double beta = atan2(-r31, sqrt(pow(r11, 2) + pow(r21, 2)));
+        double alpha = atan2((r21 / cos(beta)), (r11 / cos(beta)));
+        double gamma = atan2((r32/cos(beta)), (r33/cos(beta)));
 
-        angles.push_back(theta);
-        angles.push_back(phi);
-        angles.push_back(psi);
+        angles.push_back(alpha * 180 / PI);
+        angles.push_back(beta * 180 / PI);
+        angles.push_back(gamma * 180 / PI);
 
-        std::cout << "theta: " << (double)theta << std::endl;
-        std::cout << "phi: " << (double)phi << std::endl;
-        std::cout << "psi: " << (double)psi << std::endl;
+        std::cout << "alpha: " << (double)alpha * 180 / PI << std::endl;
+        std::cout << "beta: " << (double)beta * 180 / PI << std::endl;
+        std::cout << "gamma: " << (double)gamma * 180 / PI << std::endl;
+
+        return angles;
+    }
+
+    std::vector<double> ransac_matrix_to_GNR_angles(Eigen::Matrix4f transformation_matrix) {
+        vector<double> angles;
+        double r31 = transformation_matrix(2, 0);
+        double r32 = transformation_matrix(2, 1);
+        double r33 = transformation_matrix(2, 2);
+        double r11 = transformation_matrix(0, 0);
+        double r21 = transformation_matrix(1, 0);
+
+        double beta = atan2(-r31, sqrt(pow(r11, 2) + pow(r21, 2)));
+        double alpha = atan2((r21 / cos(beta)), (r11 / cos(beta)));
+        double gamma = atan2((r32 / cos(beta)), (r33 / cos(beta)));
+
+        angles.push_back(alpha * 180 / PI);
+        angles.push_back(beta * 180 / PI);
+        angles.push_back(gamma * 180 / PI);
+
+        std::cout << "alpha: " << (double)alpha * 180 / PI << std::endl;
+        std::cout << "beta: " << (double)beta * 180 / PI << std::endl;
+        std::cout << "gamma: " << (double)gamma * 180 / PI << std::endl;
 
         return angles;
     }

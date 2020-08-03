@@ -14,6 +14,13 @@ public:
     BaseMenu() {
         MenuName = "BaseMenu",
         m_MenuText = "This shouldn't ever be shown!",
+        logo = std::string(",--.:::::::::::::::::::::::::::::::::::::::::....:::::::\n")
+            + "    )::::::::::::::::.-----.::::::::::::::..      ..::::\n"
+            + "  _'-. _::::::::::::(       ):::::::::::..   .--.   ..::\n"
+            + " (    ) ),--.::::::(         )::::::::::.   (    )   .::\n"
+            + "             )-._:::(_______):::::::::::..   `--'   ..::\n"
+            + "_________________)::::::::::::::::::::::::..      ..::::\n"
+            + "::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
         parent = NULL,
         parameter_handler = NULL;
     }
@@ -27,9 +34,14 @@ public:
         std::cout << m_MenuText << std::endl;
     }
 
+    virtual void printLogo()
+    {
+        std::cout << logo << std::endl;
+    }
+
     virtual void printFlavorText()
     {
-        int width = longest_menu_item();
+        int width = longest_menu_item(m_MenuText) > longest_menu_item(logo) ? longest_menu_item(m_MenuText) : longest_menu_item(logo);
         int margin = floor((width - MenuName.length()) / 2);
         for (int i = 0; i < width; ++i) {
             std::cout << "-";
@@ -44,9 +56,8 @@ public:
         }
         std::cout << std::endl;
     }
-    virtual int longest_menu_item(void) {
+    virtual int longest_menu_item(std::string s) {
         std::string delimiter = "\n";
-        std::string s = m_MenuText;
         size_t pos = 0;
         std::string token;
         int max = 0;
@@ -99,6 +110,7 @@ public:
 
 protected:
     std::string MenuName;
+    std::string logo;
     std::string m_MenuText;// This string will be shared by all children (i.e. derived) classes
     BaseMenu* parent;
     ParameterHandler* parameter_handler;

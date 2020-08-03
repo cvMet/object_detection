@@ -7,6 +7,7 @@
 #include "config_normal_estimator_menu.h"
 #include "config_output_menu.h"
 #include "config_matcher_menu.h"
+#include "config_pose_estimator_menu.h"
 #include "config_input_menu.h"
 #include "../src/objectdetection.h"
 #include "../include/parameter_handler.h"
@@ -23,6 +24,7 @@ public:
             + "K - configure KPD\n"
             + "M - configure Matcher\n"
             + "O - configure Output\n"
+            + "P - configure Pose estimator\n"
             + "E - Execute\n"
             + "R - Return";
         parent = menu;
@@ -64,6 +66,11 @@ public:
         case 'O':
         {
             aNewMenu = new ConfigOutputMenu(this, parameter_handler);
+        }
+        break;
+        case 'P':
+        {
+            aNewMenu = new ConfigPoseEstimatorMenu(this, parameter_handler);
         }
         break;
         case 'E':

@@ -42,7 +42,7 @@ public:
 	void init_RANSAC() {
 		RansacRejector.setMaximumIterations(1000);
 		//Inlier Threshold Set to 5mm since this is approximately the tof standard deviation
-		RansacRejector.setInlierThreshold(0.006);
+		RansacRejector.setInlierThreshold(0.005);
 		RansacRejector.setInputSource(Query->keypoints.makeShared());
 		RansacRejector.setInputTarget(Target->keypoints.makeShared());
 		RansacRejector.setInputCorrespondences(boost::make_shared<pcl::Correspondences>(InputCorrespondences));
@@ -145,7 +145,7 @@ public:
 		std::string result = "";
 		concatenate_NNDR_and_euclidean_distance();
 		create_footer();
-		result = NNDR_euclidean_pair + "\n" + footer;
+		result = NNDR_euclidean_pair + footer;
 		return result;
 
 	}
@@ -173,5 +173,9 @@ public:
 
 	pcl::Correspondences get_RANSAC_correspondences() {
 		return RANSACCorrespondences;
+	}
+
+	Eigen::Matrix4f get_transformation() {
+		return (ransac_transformation * icp_transformation);
 	}
 };

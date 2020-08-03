@@ -16,6 +16,9 @@ private:
     bool match_retrieval = false;
     bool cloudgen_stats = false;
     bool detection_log = false;
+    bool pose_estimation = false;
+    bool transformation_matrices_based_estimation = false;
+    bool iss_frame_based_estimation = false;
     bool ransac = true;
     bool visu = false;
     int ne_scalefactor = 5;
@@ -93,6 +96,21 @@ public:
     bool toggle_visualization() {
         visu = !visu;
         return visu;
+    }
+
+    bool toggle_pose_estimation() {
+        pose_estimation = !pose_estimation;
+        return pose_estimation;
+    }
+
+    bool toggle_iss_frame_based_pose_estimation() {
+        iss_frame_based_estimation = !iss_frame_based_estimation;
+        return iss_frame_based_estimation;
+    }
+
+    bool toggle_transformation_matrices_based_pose_estimation() {
+        transformation_matrices_based_estimation = !transformation_matrices_based_estimation;
+        return transformation_matrices_based_estimation;
     }
 
      void set_execution_param(string id) {
@@ -183,6 +201,18 @@ public:
 
     bool get_visualization_state() {
         return visu;
+    }
+
+    bool get_pose_estimation_state() {
+        return pose_estimation;
+    }
+
+    bool get_iss_frame_based_pose_estimation_state() {
+        return iss_frame_based_estimation;
+    }
+
+    bool get_transformation_matrices_based_pose_estimation_state() {
+        return transformation_matrices_based_estimation;
     }
 
     int get_ne_scalefactor() {
