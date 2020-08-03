@@ -2,10 +2,10 @@
 out/
 CmakeSettings.json
 datasets/
-src/out/*
-clouds/*
-PR/
-stats/*
+src/out/**
+clouds/**
+PR/**
+stats/**
 matlab/*.ply
 matlab/*.jpg
-angles/*
+angles/**
