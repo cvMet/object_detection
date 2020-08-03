@@ -3,7 +3,7 @@ out/
 CmakeSettings.json
 datasets/
 src/out/*
-clouds/
+clouds/*
 PR/
 stats/*
 matlab/*.ply
