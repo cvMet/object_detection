@@ -225,6 +225,9 @@ int main(int argc, char* argv[])
 	}
 
 	if (ParameterHandler->get_exec_param_state("merging")) {
+		Normals QueryNormalEstimator;
+		KeypointDetector QueryKeypointDetector;
+		Descriptor QueryDescriber;
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds;
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> transformed_clouds;
 		std::vector<tuple<Eigen::Matrix4f, Eigen::Matrix4f>> transformation_matrices;
@@ -235,6 +238,21 @@ int main(int argc, char* argv[])
 		string origin_filename = origin_directory + "/" + origin_names[0].string();
 		FileHandler.load_ply_file(origin_filename, origin_cloud);
 		float queryResolution = CloudCreator.compute_cloud_resolution(origin_cloud);
+		Scene Query("query", origin_cloud);
+		Query.resolution = queryResolution;
+		//Estimate query normals
+		QueryNormalEstimator.set_scalefactor(ParameterHandler->get_ne_scalefactor());
+		QueryNormalEstimator.calculateNormals(Query.resolution, Query.cloud);
+		QueryNormalEstimator.removeNaNNormals(Query.cloud);
+		Query.normals = QueryNormalEstimator.normals;
+		//Calculate query keypoints
+		QueryKeypointDetector.set_threshold(0.7f);
+		QueryKeypointDetector.set_neighbor_count(5);
+		QueryKeypointDetector.calculateIssKeypoints(Query);
+		Query.keypoints = QueryKeypointDetector.keypoints;
+		//Calculate query descriptors
+		QueryDescriber.calculateDescriptor(Query);
+		Query.descriptors = QueryDescriber.descriptors;
 
 		//Load all permutation clouds into vector
 		FileHandler.get_all_file_names(permutation_directory, ".ply", permutation_names);
@@ -244,49 +262,33 @@ int main(int argc, char* argv[])
 			FileHandler.load_ply_file(cloud_filename, permutation_cloud);
 			clouds.push_back(permutation_cloud);
 		}
-
 		for (int cloud = 0; cloud < clouds.size(); ++cloud) {
 			Normals NormalEstimator;
 			KeypointDetector KeypointDetector;
 			Descriptor Describer;
 			Matching Matcher;
-			pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			float targetResolution = CloudCreator.compute_cloud_resolution(clouds[cloud]);
 
-			Scene Query("query", origin_cloud);
-			Query.resolution = queryResolution;
+			float targetResolution = CloudCreator.compute_cloud_resolution(clouds[cloud]);
 			Scene Target("target", clouds[cloud]);
 			Target.resolution = targetResolution;
-
 			//Estimate Normals
 			NormalEstimator.set_scalefactor(ParameterHandler->get_ne_scalefactor());
-			NormalEstimator.calculateNormals(Query.resolution, Query.cloud);
-			NormalEstimator.removeNaNNormals(Query.cloud);
-			Query.normals = NormalEstimator.normals;
 			NormalEstimator.calculateNormals(targetResolution, Target.cloud);
 			NormalEstimator.removeNaNNormals(Target.cloud);
 			Target.normals = NormalEstimator.normals;
-
 			//Detect keypoints
 			KeypointDetector.set_threshold(0.7f);
 			KeypointDetector.set_neighbor_count(5);
-			KeypointDetector.calculateIssKeypoints(Query);
-			Query.keypoints = KeypointDetector.keypoints;
 			KeypointDetector.calculateIssKeypoints(Target);
 			Target.keypoints = KeypointDetector.keypoints;
-
 			//Calculate descriptor for each keypoint
-			Describer.calculateDescriptor(Query);
-			Query.descriptors = Describer.descriptors;
 			Describer.calculateDescriptor(Target);
 			Target.descriptors = Describer.descriptors;
-
 			//Matching
 			Matcher.queryDescriptor_ = Query.descriptors;
 			Matcher.targetDescriptor_ = Target.descriptors;
 			Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold());
-
+			//Registration
 			Registrator Registrator(Query, Target, Matcher.corresp);
 			Registrator.set_distance_threshold(supportRadius_* Query.resolution / 2);
 			Registrator.init_RANSAC();
@@ -309,14 +311,13 @@ int main(int argc, char* argv[])
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(clouds[i], 200, 0, 0);
 				viewer->addPointCloud<pcl::PointXYZ>(clouds[i], red, "sample cloud2");
 				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud2");
-
 				//transform unaligned points and add to visualizer
 				Eigen::Matrix4f rt = get<0>(transformation_matrices[i]);
 				Eigen::Matrix4f it = get<1>(transformation_matrices[i]);
 				pcl::transformPointCloud(*clouds[i], *transformed_cloud, it);
 				pcl::transformPointCloud(*transformed_cloud, *transformed_cloud, rt);
 				transformed_clouds.push_back(transformed_cloud);
-
+				//Add aligned points to visualizer
 				viewer->addPointCloud<pcl::PointXYZ>(transformed_cloud, "sample cloud3");
 				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud3");
 				viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "sample cloud3");
@@ -327,7 +328,6 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
-
 		pcl::PointCloud<pcl::PointXYZ>::Ptr master_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		*master_cloud = *origin_cloud;
 		for (int i = 0; i < transformed_clouds.size(); ++i) {
@@ -335,21 +335,8 @@ int main(int argc, char* argv[])
 		}
 		pcl::io::savePLYFileASCII("../../../../clouds/merging/merged/mastercloud.ply", *master_cloud);
 		if (ParameterHandler->get_visualization_state()) {
-			boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-			viewer->setBackgroundColor(0, 0, 0);
-			viewer->initCameraParameters();
-			//Add origin points to visualizer
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> gold(master_cloud, 226, 176, 7);
-			viewer->addPointCloud<pcl::PointXYZ>(master_cloud, gold, "sample cloud1");
-			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
-			while (!viewer->wasStopped())
-			{
-				viewer->spinOnce(100);
-				std::this_thread::sleep_for(100ms);
-			}
+			CloudCreator.show_cloud(master_cloud);
 		}
-		*master_cloud = CloudCreator.remove_outliers(master_cloud, 50);
-		pcl::io::savePLYFileASCII("../../../../clouds/merging/merged/mastercloud_SOR.ply", *master_cloud);
 	}
 
 	if (ParameterHandler->get_exec_param_state("detection")) {
@@ -375,6 +362,7 @@ int main(int argc, char* argv[])
 
 					FileHandler.load_ply_file(query_filename, query);
 					Scene Query(query_identifier, query);
+					//Convert [mm] cloud to [m] cloud
 					for (int p = 0; p < Query.cloud->points.size(); ++p) {
 						Query.cloud->points[p].x = Query.cloud->points[p].x * 0.001;
 						Query.cloud->points[p].y = Query.cloud->points[p].y * 0.001;
@@ -391,7 +379,6 @@ int main(int argc, char* argv[])
 					QueryKeypointDetector.set_neighbor_count(ParameterHandler->get_detector_nn_at(neighbor));
 					QueryKeypointDetector.calculateIssKeypoints(Query);
 					Query.keypoints = QueryKeypointDetector.keypoints;
-
 					//Query Description
 					QueryDescriber.set_support_radius(supportRadius_);
 					QueryDescriber.calculateDescriptor(Query);
@@ -412,6 +399,7 @@ int main(int argc, char* argv[])
 						
 						FileHandler.load_ply_file(target_filename, target);
 						Scene Target(target_identifier, target);
+
 						// Necessary if undistorted clouds are processed (since they are in mm but pcl works on m-basis)
 						for (int p = 0; p < Target.cloud->points.size(); ++p) {
 							Target.cloud->points[p].x = Target.cloud->points[p].x * 0.001;
@@ -419,14 +407,12 @@ int main(int argc, char* argv[])
 							Target.cloud->points[p].z = Target.cloud->points[p].z * 0.001;
 						}
 						Target.resolution = CloudCreator.compute_cloud_resolution(Target.cloud);
-
 						//Target Normal Estimation
 						PerformanceTester.time_meas();
 						NormalEstimator.calculateNormals(Target.resolution, Target.cloud);
 						NormalEstimator.removeNaNNormals(Target.cloud);
 						Target.normals = NormalEstimator.normals;
 						PerformanceTester.time_meas("normal estimation");
-
 						//Target Keypoint Detection
 						PerformanceTester.time_meas();
 						KeypointDetector.set_threshold(ParameterHandler->get_detector_threshold_at(threshold));
@@ -434,22 +420,19 @@ int main(int argc, char* argv[])
 						KeypointDetector.calculateIssKeypoints(Target);
 						Target.keypoints = KeypointDetector.keypoints;
 						PerformanceTester.time_meas("detecting keypoints");
-
 						//Target Description
 						PerformanceTester.time_meas();
 						Describer.set_support_radius(supportRadius_);
 						Describer.calculateDescriptor(Target);
 						Target.descriptors = Describer.descriptors;
 						PerformanceTester.time_meas("calculating descriptor");
-
 						//Matching
 						PerformanceTester.time_meas();
 						Matcher.queryDescriptor_ = Query.descriptors;
 						Matcher.targetDescriptor_ = Target.descriptors;
 						Matcher.calculateCorrespondences(ParameterHandler->get_matcher_distance_threshold());
 						PerformanceTester.time_meas("matching");
-
-						// Registration -> Output Preparation
+						// Registration
 						Registrator Registrator(Query, Target, Matcher.corresp);
 						Registrator.set_distance_threshold(supportRadius_ * Query.resolution / 2);
 						Registrator.init_RANSAC();
@@ -464,7 +447,7 @@ int main(int argc, char* argv[])
 							+ "/" + descriptor
 							+ "/" + Query.identifier + "_to_" + Target.identifier + ".csv";
 						FileHandler.writeToFile(result, pr_filename);
-
+						//Output preparation based on CLI input
 						if (ParameterHandler->get_pose_estimation_state()) {
 							PoseEstimator PoseEstimator;
 							std::string estimates;
@@ -592,7 +575,6 @@ int main(int argc, char* argv[])
 			string background_filename = processing_directory + "/" + processing_names[0].string();
 			pcl::PointCloud<pcl::PointXYZ>::Ptr background(new pcl::PointCloud<pcl::PointXYZ>);
 			FileHandler.load_ply_file(background_filename, background);
-
 			//Pop first element (background without query)
 			processing_names.erase(processing_names.begin());
 			//Remove background from all scenes

@@ -390,11 +390,13 @@ public:
 		std::cout << "Point Cloud Size: " << cloud.size() << endl;
 	}
 
-	void show_cloud(pcl::PointCloud<pcl::PointXYZ> cloud) {
+	void show_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 		viewer->setBackgroundColor(0, 0, 0);
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color1(cloud.makeShared(), 255, 255, 255);
-		viewer->addPointCloud<pcl::PointXYZ>(cloud.makeShared(), single_color1, "sample cloud1");
+		viewer->initCameraParameters();
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> gold(cloud, 226, 176, 7);
+		viewer->addPointCloud<pcl::PointXYZ>(cloud, gold, "sample cloud1");
+		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud1");
 		viewer->addCoordinateSystem(0.1);
 		while (!viewer->wasStopped())
 		{
