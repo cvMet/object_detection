@@ -15,7 +15,7 @@
 #include <random>
 #include "../include/menu/base_menu.h"
 #include "../include/menu/main_menu.h"
-#include "../include/menu/cloudcreation_menu.h"
+#include "../include/menu/creation_menu.h"
 #include "../include/menu/detection_menu.h"
 #include "../include/menu/filter_menu.h"
 #include "../include/menu/merge_menu.h"
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
 		std::vector<std::vector<float>> background_distance_array = FileHandler.melexis_txt_to_distance_array(bkgr_depth_filename, rows, columns);
 		background_cloud = CloudCreator.distance_array_to_cloud(background_distance_array, 6.0f, 0.015f, 0.015f);
 		if (ParameterHandler->get_filter_state("median")) {
-			background_cloud = CloudCreator.median_filter(background_cloud, 5);
+			background_cloud = CloudCreator.median_filter(background_cloud, ParameterHandler->get_median_window_size());
 		}
 		//Pop first element (background without query)
 		depth_names.erase(depth_names.begin());
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
 			PerformanceTester.time_meas("time_distanceToCloud");
 			if (ParameterHandler->get_filter_state("median")) {
 				PerformanceTester.time_meas();
-				query_cloud = CloudCreator.median_filter(query_cloud, 5);
+				query_cloud = CloudCreator.median_filter(query_cloud, ParameterHandler->get_median_window_size());
 				PerformanceTester.time_meas("time_medianfilter");
 			}
 			PerformanceTester.time_meas();
@@ -202,13 +202,14 @@ int main(int argc, char* argv[])
 			PerformanceTester.time_meas("time_backgroundRemoval");
 			if (ParameterHandler->get_filter_state("roi")) {
 				PerformanceTester.time_meas();
-				final_cloud = CloudCreator.roi_filter(final_cloud, "x", -0.2f, 0.2f);
-				final_cloud = CloudCreator.roi_filter(final_cloud, "y", -0.2f, 0.2f);
+				final_cloud = CloudCreator.roi_filter(final_cloud, "x", -(ParameterHandler->get_roi_x_limit()), ParameterHandler->get_roi_x_limit());
+				final_cloud = CloudCreator.roi_filter(final_cloud, "y", -(ParameterHandler->get_roi_y_limit()), ParameterHandler->get_roi_y_limit());
+				final_cloud = CloudCreator.roi_filter(final_cloud, "z", -(ParameterHandler->get_roi_z_limit()), ParameterHandler->get_roi_z_limit());
 				PerformanceTester.time_meas("time_ROIfilter");
 			}
 			if (ParameterHandler->get_filter_state("sor")) {
 				PerformanceTester.time_meas();
-				final_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(), 10);
+				final_cloud = CloudCreator.remove_outliers(final_cloud.makeShared(), ParameterHandler->get_sor_neighbor_count());
 				PerformanceTester.time_meas("time_SORfilter");
 			}
 			string filename = cloud_directory + "/" + depth_names[i].string();
@@ -614,14 +615,15 @@ int main(int argc, char* argv[])
 					vector<vector<int>> neighbor_indices;
 					vector<vector<float>> neighbor_distances;
 					CloudCreator.get_neighbors(scene, neighbor_indices, neighbor_distances);
-					scene = CloudCreator.median_filter_unordered_cloud(scene, neighbor_indices, neighbor_distances, 5);
+					scene = CloudCreator.median_filter_unordered_cloud(scene, neighbor_indices, neighbor_distances, ParameterHandler->get_median_window_size());
 				}
 				if (ParameterHandler->get_filter_state("roi")) {
-					*scene = CloudCreator.roi_filter(*scene, "x", -0.2f, 0.2f);
-					*scene = CloudCreator.roi_filter(*scene, "y", -0.2f, 0.2f);
+					*scene = CloudCreator.roi_filter(*scene, "x", -(ParameterHandler->get_roi_x_limit()), ParameterHandler->get_roi_x_limit());
+					*scene = CloudCreator.roi_filter(*scene, "y", -(ParameterHandler->get_roi_y_limit()), ParameterHandler->get_roi_y_limit());
+					*scene = CloudCreator.roi_filter(*scene, "z", -(ParameterHandler->get_roi_z_limit()), ParameterHandler->get_roi_z_limit());
 				}
 				if (ParameterHandler->get_filter_state("sor")) {
-					*scene = CloudCreator.remove_outliers(scene, 10);
+					*scene = CloudCreator.remove_outliers(scene, ParameterHandler->get_sor_neighbor_count());
 				}
 				filename = processed_directory + "/" + processing_names[i].string();
 				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";

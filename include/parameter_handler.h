@@ -24,8 +24,13 @@ private:
     bool visu = false;
     bool downsample = false;
     int ne_scalefactor = 5;
+    int median_window_size = 5;
+    int sor_neighbor_count = 10;
     float matcher_distance_threshold = 0.95f;
     float leaf_size = 0.005f;
+    float roi_x_limit = 0.2f;
+    float roi_y_limit = 0.2f;
+    float roi_z_limit = 0.2f;
     float background_removal_threshold = 0.005f;
     int detection_threshold = 0;
     std::string object = "mutter_sequence_easy";
@@ -154,6 +159,18 @@ public:
          leaf_size = size;
      }
 
+     void set_roi_x_limit(float limit) {
+         roi_x_limit = limit;
+     }
+
+     void set_roi_y_limit(float limit) {
+         roi_y_limit = limit;
+     }
+
+     void set_roi_z_limit(float limit) {
+         roi_z_limit = limit;
+     }
+
      void set_dataset(string dataset_name) {
          dataset = dataset_name;
      }
@@ -164,6 +181,14 @@ public:
 
      void set_object(string object_name) {
          object = object_name;
+     }
+
+     void set_median_window_size(int size) {
+         median_window_size = size;
+     }
+
+     void set_sor_neighbor_count(int count) {
+         sor_neighbor_count = count;
      }
 
      void add_detector_threshold(float threshold) {
@@ -248,6 +273,14 @@ public:
         return detection_threshold;
     }
 
+    int get_median_window_size() {
+        return median_window_size;
+    }
+
+    int get_sor_neighbor_count() {
+        return sor_neighbor_count;
+    }
+
     float get_background_removal_threshold() {
         return background_removal_threshold;
     }
@@ -258,6 +291,18 @@ public:
 
     float get_leaf_size() {
         return leaf_size;
+    }
+
+    float get_roi_x_limit() {
+        return roi_x_limit;
+    }
+
+    float get_roi_y_limit() {
+        return roi_y_limit;
+    }
+
+    float get_roi_z_limit() {
+        return roi_z_limit;
     }
 
     std::string get_dataset() {

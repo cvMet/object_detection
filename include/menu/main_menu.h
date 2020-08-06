@@ -4,9 +4,9 @@
 #include <string>
 #include "base_menu.h"
 #include "merge_menu.h"
-#include "cloudcreation_menu.h"
+#include "creation_menu.h"
 #include "learning_menu.h"
-#include "cloudprocessing_menu.h"
+#include "processing_menu.h"
 #include "detection_menu.h"
 #include "../src/objectdetection.h"
 

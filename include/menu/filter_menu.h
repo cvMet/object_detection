@@ -5,6 +5,9 @@
 #include <chrono>
 #include "../include/menu/base_menu.h"
 #include "../src/objectdetection.h"
+#include "../include/menu/config_median_menu.h"
+#include "../include/menu/config_sor_menu.h"
+#include "../include/menu/config_roi_menu.h"
 
 class FilterMenu : public BaseMenu
 {
@@ -14,8 +17,7 @@ public:
 	FilterMenu::FilterMenu(BaseMenu* menu, ParameterHandler* param_handler)
 	{
 		MenuName = std::string("Filter Menu");
-		m_MenuText = std::string("Choose the filters you want to apply during cloud creation\n")
-			+ "E - enable/disable Filtering\n"
+		m_MenuText = std::string("E - enable/disable Filtering\n")
 			+ "M - Median filter\n"
 			+ "I - ROI filter\n"
 			+ "S - SOR filter\n"
@@ -40,23 +42,17 @@ public:
 		break;
 		case 'M':
 		{
-			state = parameter_handler->toggle_filter(std::string("median"));
-			std::cout << "median filter state: " << std::to_string(state) << std::endl;
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			aNewMenu = new ConfigMedianMenu(this, parameter_handler);
 		}
 		break;
 		case 'I':
 		{
-			state = parameter_handler->toggle_filter(std::string("roi"));
-			std::cout << "roi filter state: " << std::to_string(state) << std::endl;
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			aNewMenu = new ConfigROIMenu(this, parameter_handler);
 		}
 		break;
 		case 'S':
 		{
-			state = parameter_handler->toggle_filter(std::string("sor"));
-			std::cout << "statistical outlier removal filter state: " << std::to_string(state) << std::endl;
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			aNewMenu = new ConfigSORMenu(this, parameter_handler);
 		}
 		break;
 		case 'R':
