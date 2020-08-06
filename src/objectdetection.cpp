@@ -55,7 +55,7 @@ string query_directory = "../../../../clouds/query_clouds";
 string target_directory = "../../../../clouds/target_clouds";
 string pr_root = "../../../../PR/Buch";
 string stats_root = "../../../../stats";
-string angles_root = "../../../../angles";
+string pose_estimation_root = "../../../../pose_estimation";
 vector<fs::path> query_names;
 vector<fs::path> target_names;
 //Paths used during merging
@@ -88,14 +88,6 @@ std::string get_input() {
 	string input;
 	cin >> input;
 	return input;
-}
-
-float get_median(std::vector<float> values) {
-	std::vector<float>::iterator first = values.begin();
-	std::vector<float>::iterator last = values.end();
-	std::vector<float>::iterator middle = first + (last - first) / 2;
-	std::nth_element(first, middle, last);
-	return *middle;
 }
 
 int nthOccurrence(const std::string& str, const std::string& findMe, int nth)
@@ -200,7 +192,6 @@ int main(int argc, char* argv[])
 			PerformanceTester.time_meas();
 			query_cloud = CloudCreator.distance_array_to_cloud(query_distance_array, 6.0f, 0.015f, 0.015f);
 			PerformanceTester.time_meas("time_distanceToCloud");
-			//If median filtering enabled
 			if (ParameterHandler->get_filter_state("median")) {
 				PerformanceTester.time_meas();
 				query_cloud = CloudCreator.median_filter(query_cloud, 5);
@@ -481,7 +472,7 @@ int main(int argc, char* argv[])
 								//Pose Estimation based on ISS Frames
 								pcl::Correspondences corresp = Registrator.get_RANSAC_correspondences();
 								estimates = PoseEstimator.get_pose_estimation(Query, Target, corresp);
-								filename = angles_root
+								filename = pose_estimation_root
 									+ "/" + ParameterHandler->get_dataset()
 									+ "/" + ParameterHandler->get_object()
 									+ "/" + ParameterHandler->get_preprocessor_mode()
@@ -493,7 +484,7 @@ int main(int argc, char* argv[])
 								//Pose Estimation based on RANSAC and ICP transformation matrices
 								Eigen::Matrix4f transformation = Registrator.get_transformation();
 								estimates = PoseEstimator.get_RANSAC_pose_estimation(transformation);
-								filename = angles_root
+								filename = pose_estimation_root
 									+ "/" + ParameterHandler->get_dataset()
 									+ "/" + ParameterHandler->get_object()
 									+ "/" + ParameterHandler->get_preprocessor_mode()
@@ -594,27 +585,47 @@ int main(int argc, char* argv[])
 	}
 
 	if (ParameterHandler->get_exec_param_state("processing")) {
+		FileHandler.get_all_file_names(processing_directory, ".ply", processing_names);
 		if (ParameterHandler->get_background_removal_state()) {
-			FileHandler.get_all_file_names(processing_directory, ".ply", processing_names);
+			//If background has to be removed first file contains background information -> load it into cloud
 			string background_filename = processing_directory + "/" + processing_names[0].string();
-			int name_pos = background_filename.find((processing_names[0].string()), 0);
-			int extension_pos = background_filename.find(".ply", 0);
-			string background_identifier = get_identifier(background_filename, name_pos, extension_pos);
-			pcl::PointCloud<pcl::PointXYZ> background;
-			FileHandler.load_ply_file(background_filename, background.makeShared());
+			pcl::PointCloud<pcl::PointXYZ>::Ptr background(new pcl::PointCloud<pcl::PointXYZ>);
+			FileHandler.load_ply_file(background_filename, background);
+
 			//Pop first element (background without query)
 			processing_names.erase(processing_names.begin());
+			//Remove background from all scenes
 			for (int i = 0; i < processing_names.size(); ++i) {
 				string filename = processing_directory + "/" + processing_names[i].string();
-				int name_pos = filename.find((processing_names[i].string()), 0);
-				int extension_pos = filename.find(".ply", 0);
-				string identifier = get_identifier(filename, name_pos, extension_pos);
-				pcl::PointCloud<pcl::PointXYZ> scene;
-				FileHandler.load_ply_file(filename, scene.makeShared());
-				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(scene, background, ParameterHandler->get_background_removal_threshold());
+				pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
+				FileHandler.load_ply_file(filename, scene);
+				pcl::PointCloud<pcl::PointXYZ> processed_cloud = CloudCreator.remove_background(*scene, *background, ParameterHandler->get_background_removal_threshold());
 				filename = processed_directory + "/" + processing_names[i].string();
 				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
 				pcl::io::savePLYFileASCII(substr, processed_cloud);
+			}
+		}
+		if (ParameterHandler->get_filtering_state()) {
+			for (int i = 0; i < processing_names.size(); ++i) {
+				string filename = processing_directory + "/" + processing_names[i].string();
+				pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
+				FileHandler.load_ply_file(filename, scene);
+				if (ParameterHandler->get_filter_state("median")) {
+					vector<vector<int>> neighbor_indices;
+					vector<vector<float>> neighbor_distances;
+					CloudCreator.get_neighbors(scene, neighbor_indices, neighbor_distances);
+					scene = CloudCreator.median_filter_unordered_cloud(scene, neighbor_indices, neighbor_distances, 5);
+				}
+				if (ParameterHandler->get_filter_state("roi")) {
+					*scene = CloudCreator.roi_filter(*scene, "x", -0.2f, 0.2f);
+					*scene = CloudCreator.roi_filter(*scene, "y", -0.2f, 0.2f);
+				}
+				if (ParameterHandler->get_filter_state("sor")) {
+					*scene = CloudCreator.remove_outliers(scene, 10);
+				}
+				filename = processed_directory + "/" + processing_names[i].string();
+				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+				pcl::io::savePLYFileASCII(substr, *scene);
 			}
 		}
 	}

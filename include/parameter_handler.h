@@ -17,6 +17,7 @@ private:
     bool cloudgen_stats = false;
     bool detection_log = false;
     bool pose_estimation = false;
+    bool filtering = false;
     bool transformation_matrices_based_estimation = false;
     bool iss_frame_based_estimation = false;
     bool ransac = true;
@@ -61,6 +62,11 @@ public:
             }
         }
         return false;
+    }
+
+    bool toggle_filtering_state() {
+        filtering = !filtering;
+        return filtering;
     }
 
     bool toggle_cloudgen_stats() {
@@ -181,6 +187,10 @@ public:
 
     bool get_ransac_state() {
         return ransac;
+    }
+
+    bool get_filtering_state() {
+        return filtering;
     }
 
     bool get_detection_stats_state() {

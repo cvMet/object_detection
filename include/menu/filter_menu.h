@@ -15,10 +15,11 @@ public:
 	{
 		MenuName = std::string("Filter Menu");
 		m_MenuText = std::string("Choose the filters you want to apply during cloud creation\n")
+			+ "F - enable/disable Filtering\n"
 			+ "M - Median filter\n"
-			+ "R - ROI filter\n"
+			+ "I - ROI filter\n"
 			+ "S - SOR filter\n"
-			+ "Q Quit";
+			+ "R - Return";
 		parent = menu;
 		child = true;
 		parameter_handler = param_handler;
@@ -30,6 +31,13 @@ public:
 
 		switch (choice)
 		{
+		case 'F':
+		{
+			state = parameter_handler->toggle_filtering_state();
+			std::cout << "Filtering state: " << std::to_string(state) << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		}
+		break;
 		case 'M':
 		{
 			state = parameter_handler->toggle_filter(std::string("median"));
@@ -37,7 +45,7 @@ public:
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
-		case 'R':
+		case 'I':
 		{
 			state = parameter_handler->toggle_filter(std::string("roi"));
 			std::cout << "roi filter state: " << std::to_string(state) << std::endl;
@@ -51,7 +59,7 @@ public:
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		}
 		break;
-		case 'Q':
+		case 'R':
 		{
 			aNewMenu = parent;
 		}

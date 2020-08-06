@@ -5,6 +5,7 @@
 #include "base_menu.h"
 #include "../src/objectdetection.h"
 #include "../include/parameter_handler.h"
+#include "../include/menu/background_removal_menu.h"
 
 class CloudProcessingMenu : public BaseMenu
 {
@@ -13,8 +14,9 @@ public:
     CloudProcessingMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Cloud Processing Menu");
-        m_MenuText = std::string("T - set background removal Threshold (default = 0.005 [m])\n")
-            + "B - remove Background\n"
+        m_MenuText = std::string("F - Filter clouds\n")
+            + "D - Downsample clouds\n"
+            + "B - Background removal\n"
             + "E - Execute\n"
             + "R - Return";
         parent = menu;
@@ -29,15 +31,19 @@ public:
 
         switch (choice)
         {
-        case 'T':
+        case 'F':
         {
-            parameter_handler->set_background_removal_threshold(std::stof(get_input().substr(0, 5)));
+            aNewMenu = new FilterMenu(this, parameter_handler);
+        }
+        break;
+        case 'D':
+        {
+            std::cout << "downsampling not implemented yet" << std::endl;
         }
         break;
         case 'B':
         {
-            std::cout << "background_removal state: " << std::to_string(parameter_handler->toggle_background_removal()) << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            aNewMenu = new BackgroundRemovalMenu(this, parameter_handler);
         }
         break;
         case 'E':

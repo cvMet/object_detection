@@ -145,6 +145,48 @@ public:
 		return finalCloud;
 	}
 
+	float get_median(std::vector<float> values) {
+		std::vector<float>::iterator first = values.begin();
+		std::vector<float>::iterator last = values.end();
+		std::vector<float>::iterator middle = first + (last - first) / 2;
+		std::nth_element(first, middle, last);
+		return *middle;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr median_filter_unordered_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,vector<vector<int>> neighbor_indices, vector<vector<float>> neighbor_distances, int window_size) {
+			pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
+			pcl::PointXYZ filtered_point;
+			for (int point = 0; point < neighbor_indices.size(); ++point) {
+				vector<float> x_values;
+				vector<float> y_values;
+				vector<float> z_values;
+				//Case # neighbors found is less than the number passed in search call 
+				if (neighbor_indices[point].size() < window_size) {
+					for (int i = 0; i < neighbor_indices[point].size(); ++i) {
+						x_values.push_back(cloud->at(neighbor_indices[point][i]).x);
+						y_values.push_back(cloud->at(neighbor_indices[point][i]).y);
+						z_values.push_back(cloud->at(neighbor_indices[point][i]).z);
+					}
+					filtered_point.x = get_median(x_values);
+					filtered_point.y = get_median(y_values);
+					filtered_point.z = get_median(z_values);
+				}
+				//Case # neighbors found = number passed in search call 
+				else {
+					for (int i = 0; i < window_size; ++i) {
+						x_values.push_back(cloud->at(neighbor_indices[point][i]).x);
+						y_values.push_back(cloud->at(neighbor_indices[point][i]).y);
+						z_values.push_back(cloud->at(neighbor_indices[point][i]).z);
+					}
+					filtered_point.x = get_median(x_values);
+					filtered_point.y = get_median(y_values);
+					filtered_point.z = get_median(z_values);
+				}
+				filtered->points.push_back(filtered_point);
+			}
+			return filtered;
+	}
+
 	pcl::PointCloud<pcl::PointXYZ> noise_filter(pcl::PointCloud<pcl::PointXYZ> cloud, float noise_threshold) {
 		pcl::PointCloud<pcl::PointXYZ> finalCloud;
 		for (int i = 0; i < cloud.size(); ++i) {
@@ -349,6 +391,20 @@ public:
 		{
 			viewer->spinOnce(100);
 			std::this_thread::sleep_for(100ms);
+		}
+	}
+
+	void get_neighbors(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, vector<vector<int>>& neighbor_indices, vector<vector<float>>& neighbor_distances) {
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+		tree->setInputCloud(cloud);
+		for (int point = 0; point < cloud->points.size(); ++point) {
+			vector<int> neighbors;
+			vector<float> distances;
+			pcl::PointXYZ query_point = cloud->at(point);
+			//Radius based search
+			tree->radiusSearch(query_point, 5.0f, neighbors, distances);
+			neighbor_indices.push_back(neighbors);
+			neighbor_distances.push_back(distances);
 		}
 	}
 
