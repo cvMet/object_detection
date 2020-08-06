@@ -145,6 +145,15 @@ public:
 		return finalCloud;
 	}
 
+	pcl::PointCloud<pcl::PointXYZ> downsample_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float leaf_size) {
+		pcl::PointCloud<pcl::PointXYZ> filtered_cloud;
+		pcl::VoxelGrid<pcl::PointXYZ> downsampler;
+		downsampler.setInputCloud(cloud);
+		downsampler.setLeafSize(leaf_size, leaf_size, leaf_size);
+		downsampler.filter(filtered_cloud);
+		return filtered_cloud;
+	}
+
 	float get_median(std::vector<float> values) {
 		std::vector<float>::iterator first = values.begin();
 		std::vector<float>::iterator last = values.end();
@@ -407,6 +416,8 @@ public:
 			neighbor_distances.push_back(distances);
 		}
 	}
+
+
 
 };
 #endif

@@ -628,6 +628,18 @@ int main(int argc, char* argv[])
 				pcl::io::savePLYFileASCII(substr, *scene);
 			}
 		}
+		if (ParameterHandler->get_downsample_state()) {
+			pcl::PointCloud<pcl::PointXYZ> downsampled_cloud;
+			for (int i = 0; i < processing_names.size(); ++i){
+				string filename = processing_directory + "/" + processing_names[i].string();
+				pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
+				FileHandler.load_ply_file(filename, scene);
+				downsampled_cloud = CloudCreator.downsample_cloud(scene, ParameterHandler->get_leaf_size());
+				filename = processed_directory + "/" + processing_names[i].string();
+				string substr = filename.substr(0, (filename.length() - 4)) + ".ply";
+				pcl::io::savePLYFileASCII(substr, downsampled_cloud);
+			}
+		}
 	}
 
 	return 0;

@@ -11,7 +11,7 @@ public:
     ConfigKPDMenu(BaseMenu* menu, ParameterHandler* param_handler)
     {
         MenuName = std::string("Config KPD Menu");
-        m_MenuText = std::string("T - add KPD Threshold(default = 0.7)\n")
+        m_MenuText = std::string("T - add KPD Threshold(default = 0.700)\n")
             + "N - add KPD #Neighbors (default = 5)\n"
             + "R - Return";
         parent = menu;

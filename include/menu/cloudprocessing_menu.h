@@ -6,6 +6,7 @@
 #include "../src/objectdetection.h"
 #include "../include/parameter_handler.h"
 #include "../include/menu/background_removal_menu.h"
+#include "../include/menu/downsample_menu.h"
 
 class CloudProcessingMenu : public BaseMenu
 {
@@ -38,7 +39,7 @@ public:
         break;
         case 'D':
         {
-            std::cout << "downsampling not implemented yet" << std::endl;
+            aNewMenu = new DownsampleMenu(this, parameter_handler);
         }
         break;
         case 'B':

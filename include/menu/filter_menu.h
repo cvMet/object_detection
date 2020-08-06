@@ -15,7 +15,7 @@ public:
 	{
 		MenuName = std::string("Filter Menu");
 		m_MenuText = std::string("Choose the filters you want to apply during cloud creation\n")
-			+ "F - enable/disable Filtering\n"
+			+ "E - enable/disable Filtering\n"
 			+ "M - Median filter\n"
 			+ "I - ROI filter\n"
 			+ "S - SOR filter\n"
@@ -31,7 +31,7 @@ public:
 
 		switch (choice)
 		{
-		case 'F':
+		case 'E':
 		{
 			state = parameter_handler->toggle_filtering_state();
 			std::cout << "Filtering state: " << std::to_string(state) << std::endl;

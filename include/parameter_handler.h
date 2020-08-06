@@ -22,8 +22,10 @@ private:
     bool iss_frame_based_estimation = false;
     bool ransac = true;
     bool visu = false;
+    bool downsample = false;
     int ne_scalefactor = 5;
     float matcher_distance_threshold = 0.95f;
+    float leaf_size = 0.005f;
     float background_removal_threshold = 0.005f;
     int detection_threshold = 0;
     std::string object = "mutter_sequence_easy";
@@ -104,6 +106,11 @@ public:
         return visu;
     }
 
+    bool toggle_downsample() {
+        downsample = !downsample;
+        return downsample;
+    }
+
     bool toggle_pose_estimation() {
         pose_estimation = !pose_estimation;
         return pose_estimation;
@@ -141,6 +148,10 @@ public:
 
      void set_matcher_distance_threshold(float threshold) {
          matcher_distance_threshold = threshold;
+     }
+
+     void set_leaf_size(float size) {
+         leaf_size = size;
      }
 
      void set_dataset(string dataset_name) {
@@ -225,6 +236,10 @@ public:
         return transformation_matrices_based_estimation;
     }
 
+    bool get_downsample_state() {
+        return downsample;
+    }
+
     int get_ne_scalefactor() {
         return ne_scalefactor;
     }
@@ -239,6 +254,10 @@ public:
 
     float get_matcher_distance_threshold() {
         return matcher_distance_threshold;
+    }
+
+    float get_leaf_size() {
+        return leaf_size;
     }
 
     std::string get_dataset() {
