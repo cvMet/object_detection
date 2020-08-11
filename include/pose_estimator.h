@@ -15,7 +15,7 @@ private:
     double eigenv_2 = 0.0;
     double eigenv_3 = 0.0;
     std::vector<Eigen::Matrix3d> rotation_estimates;
-    std::vector<std::vector<double>> angles;
+    std::vector<std::vector<double>> pose_estimation;
 
 public:
     PoseEstimator()
@@ -23,12 +23,67 @@ public:
 
     }
 
-    void set_matches(pcl::Correspondences corresp) {
-        matches = corresp;
+    std::string get_RANSAC_pose_estimation(Eigen::Matrix4f transformation_matrix) {
+        pose_estimation.clear();
+        pose_estimation.push_back(ransac_matrix_to_GNR_angles(transformation_matrix));
+        pose_estimation.push_back(ransac_matrix_to_translation(transformation_matrix));
+        return create_writable_pose_estimation(pose_estimation);
     }
 
-    std::string get_pose_estimation(Scene& query, Scene& target, pcl::Correspondences corresp) {
-        angles.clear();
+    std::vector<double> ransac_matrix_to_GNR_angles(Eigen::Matrix4f transformation_matrix) {
+        vector<double> angles;
+        double r31 = transformation_matrix(2, 0);
+        double r32 = transformation_matrix(2, 1);
+        double r33 = transformation_matrix(2, 2);
+        double r11 = transformation_matrix(0, 0);
+        double r21 = transformation_matrix(1, 0);
+
+        double beta = atan2(-r31, sqrt(pow(r11, 2) + pow(r21, 2)));
+        double alpha = atan2((r21 / cos(beta)), (r11 / cos(beta)));
+        double gamma = atan2((r32 / cos(beta)), (r33 / cos(beta)));
+
+        angles.push_back(alpha * 180 / PI);
+        angles.push_back(beta * 180 / PI);
+        angles.push_back(gamma * 180 / PI);
+
+        std::cout << "alpha: " << (double)alpha * 180 / PI << std::endl;
+        std::cout << "beta: " << (double)beta * 180 / PI << std::endl;
+        std::cout << "gamma: " << (double)gamma * 180 / PI << std::endl;
+
+        return angles;
+    }
+
+    std::vector<double> ransac_matrix_to_translation(Eigen::Matrix4f transformation_matrix) {
+        vector<double> translation;
+        double x_translation = transformation_matrix(0, 3);
+        double y_translation = transformation_matrix(1, 3);
+        double z_translation = transformation_matrix(2, 3);
+
+        translation.push_back(x_translation);
+        translation.push_back(y_translation);
+        translation.push_back(z_translation);
+
+        std::cout << "x_translation: " << (double)x_translation;
+        std::cout << "y_translation: " << (double)y_translation;
+        std::cout << "z_translation: " << (double)z_translation;
+
+        return translation;
+    }
+
+
+    std::string create_writable_pose_estimation(vector<vector<double>> pose_estimation) {
+        std::string data = "";
+        for (int i = 0; i < pose_estimation.size(); ++i) {
+            for (int j = 0; j < pose_estimation[i].size(); ++j) {
+                data += std::to_string(pose_estimation[i][j]) + ",";
+            }
+            data += "\n";
+        }
+        return data;
+    }
+
+    std::string get_ISS_pose_estimation(Scene& query, Scene& target, pcl::Correspondences corresp) {
+        pose_estimation.clear();
         set_matches(corresp);
         for (int i = 0; i < matches.size(); ++i) {
             //Calculate ISS Reference Frame for query point from collection of matches
@@ -41,15 +96,13 @@ public:
             target_frame = get_ref_frame(target_cov);
             //Calculate transformation between two reference frames
             rotation_estimates.push_back(get_rotation(query_frame, target_frame));
-            angles.push_back(transformation_matrix_to_GNR_angles(rotation_estimates[i]));
+            pose_estimation.push_back(transformation_matrix_to_GNR_angles(rotation_estimates[i]));
         }
-        return create_writable_angles(angles);
+        return create_writable_pose_estimation(pose_estimation);
     }
 
-    std::string get_RANSAC_pose_estimation(Eigen::Matrix4f transformation_matrix) {
-        angles.clear();
-        angles.push_back(ransac_matrix_to_GNR_angles(transformation_matrix));
-        return create_writable_angles(angles);
+    void set_matches(pcl::Correspondences corresp) {
+        matches = corresp;
     }
 
     void getScatterMatrix(Scene& scene, const int& current_index, Eigen::Matrix3d& cov_m)
@@ -107,16 +160,6 @@ public:
         tree->radiusSearch(base_point, (7 * scene.resolution), nn_indices, nn_distances);
     }
 
-    void calc_eigenvalues(Eigen::Matrix3d cov_m) {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(cov_m);
-        const double& e1c = solver.eigenvalues()[2];
-        const double& e2c = solver.eigenvalues()[1];
-        const double& e3c = solver.eigenvalues()[0];
-        eigenv_1 = e1c;
-        eigenv_2 = e2c;
-        eigenv_3 = e3c;
-    }
-
     Eigen::Matrix3d get_ref_frame(Eigen::Matrix3d cov_m) {
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(cov_m);
         Eigen::Matrix3d frame;
@@ -134,61 +177,7 @@ public:
         return R;
     }
 
-    std::string get_rotation_estimates() {
-        std::string temp = "";
-        for (int i = 0; i < rotation_estimates.size(); ++i) {
-            for (int j = 0; j < 9; ++j) {
-                temp += std::to_string(rotation_estimates[i].data()[j]) + ",";
-            }
-            temp += "\n";
-        }
-        return temp;
-    }
-    std::vector<double> transformation_matrix_to_euler_angles(Eigen::Matrix3d transformation_matrix) {
-        vector<double> angles;
-        double cosBeta = transformation_matrix(2, 2);
-        double negCosAlphaSinBeta = transformation_matrix(2, 1);
-        double sinBetaCosGamma = transformation_matrix(1, 2);
-
-        double beta = acos(cosBeta) * 180 / PI;
-        double alpha = acos(-(negCosAlphaSinBeta / sin((beta * PI / 180))));
-        double gamma = acos(sinBetaCosGamma / sin((beta * PI / 180)));
-
-        angles.push_back(alpha);
-        angles.push_back(beta);
-        angles.push_back(gamma);
-
-        std::cout << "alpha: " << (double)alpha << std::endl;
-        std::cout << "beta: " << (double)beta << std::endl;
-        std::cout << "gamma: " << (double)gamma << std::endl;
-
-        return angles;
-    }
-
     std::vector<double> transformation_matrix_to_GNR_angles(Eigen::Matrix3d transformation_matrix) {
-        vector<double> angles;
-        double r31 = transformation_matrix(2, 0);
-        double r32 = transformation_matrix(2, 1);
-        double r33 = transformation_matrix(2, 2);
-        double r11 = transformation_matrix(0, 0);
-        double r21 = transformation_matrix(1, 0);
-
-        double beta = atan2(-r31, sqrt(pow(r11, 2) + pow(r21, 2)));
-        double alpha = atan2((r21 / cos(beta)), (r11 / cos(beta)));
-        double gamma = atan2((r32/cos(beta)), (r33/cos(beta)));
-
-        angles.push_back(alpha * 180 / PI);
-        angles.push_back(beta * 180 / PI);
-        angles.push_back(gamma * 180 / PI);
-
-        std::cout << "alpha: " << (double)alpha * 180 / PI << std::endl;
-        std::cout << "beta: " << (double)beta * 180 / PI << std::endl;
-        std::cout << "gamma: " << (double)gamma * 180 / PI << std::endl;
-
-        return angles;
-    }
-
-    std::vector<double> ransac_matrix_to_GNR_angles(Eigen::Matrix4f transformation_matrix) {
         vector<double> angles;
         double r31 = transformation_matrix(2, 0);
         double r32 = transformation_matrix(2, 1);
@@ -211,16 +200,45 @@ public:
         return angles;
     }
 
-    std::string create_writable_angles(vector<vector<double>> angles) {
-        std::string data = "";
-        for (int i = 0; i < angles.size(); ++i) {
-            for (int j = 0; j < angles[i].size(); ++j) {
-                data += std::to_string(angles[i][j]) + ",";
+    std::string get_rotation_estimates() {
+        std::string temp = "";
+        for (int i = 0; i < rotation_estimates.size(); ++i) {
+            for (int j = 0; j < 9; ++j) {
+                temp += std::to_string(rotation_estimates[i].data()[j]) + ",";
             }
-            data += "\n";
+            temp += "\n";
         }
-        return data;
+        return temp;
     }
 
+    void calc_eigenvalues(Eigen::Matrix3d cov_m) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(cov_m);
+        const double& e1c = solver.eigenvalues()[2];
+        const double& e2c = solver.eigenvalues()[1];
+        const double& e3c = solver.eigenvalues()[0];
+        eigenv_1 = e1c;
+        eigenv_2 = e2c;
+        eigenv_3 = e3c;
+    }
 
+    std::vector<double> transformation_matrix_to_euler_angles(Eigen::Matrix3d transformation_matrix) {
+        vector<double> angles;
+        double cosBeta = transformation_matrix(2, 2);
+        double negCosAlphaSinBeta = transformation_matrix(2, 1);
+        double sinBetaCosGamma = transformation_matrix(1, 2);
+
+        double beta = acos(cosBeta) * 180 / PI;
+        double alpha = acos(-(negCosAlphaSinBeta / sin((beta * PI / 180))));
+        double gamma = acos(sinBetaCosGamma / sin((beta * PI / 180)));
+
+        angles.push_back(alpha);
+        angles.push_back(beta);
+        angles.push_back(gamma);
+
+        std::cout << "alpha: " << (double)alpha << std::endl;
+        std::cout << "beta: " << (double)beta << std::endl;
+        std::cout << "gamma: " << (double)gamma << std::endl;
+
+        return angles;
+    }
 };

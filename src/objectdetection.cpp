@@ -123,10 +123,6 @@ int value_between_seperator(string& str, string seperator, int pos) {
 	return temp;
 }
 
-void set_query_learning() {
-	query_learning = true;
-}
-
 int main(int argc, char* argv[])
 {
 	FileHandler FileHandler;
@@ -383,7 +379,10 @@ int main(int argc, char* argv[])
 					QueryDescriber.set_support_radius(supportRadius_);
 					QueryDescriber.calculateDescriptor(Query);
 					Query.descriptors = QueryDescriber.descriptors;
-
+					if (ParameterHandler->get_fpfh_state()) {
+						QueryDescriber.calculate_fpfh_descriptor(Query);
+						Query.fpfh_descriptors = QueryDescriber.fpfh_descriptors;
+					}
 					for (int target_number = 0; target_number < target_names.size(); ++target_number)
 					{
 						Normals NormalEstimator;
@@ -455,7 +454,7 @@ int main(int argc, char* argv[])
 							if (ParameterHandler->get_iss_frame_based_pose_estimation_state()) {
 								//Pose Estimation based on ISS Frames
 								pcl::Correspondences corresp = Registrator.get_RANSAC_correspondences();
-								estimates = PoseEstimator.get_pose_estimation(Query, Target, corresp);
+								estimates = PoseEstimator.get_ISS_pose_estimation(Query, Target, corresp);
 								filename = pose_estimation_root
 									+ "/" + ParameterHandler->get_dataset()
 									+ "/" + ParameterHandler->get_object()
@@ -476,6 +475,27 @@ int main(int argc, char* argv[])
 									+ "/" + Query.identifier + "_to_" + Target.identifier + "_RANSAC_GNR_angles.csv";
 								FileHandler.writeToFile(estimates, filename);
 							}
+						}
+						if (ParameterHandler->get_fpfh_state()) {
+							Describer.calculate_fpfh_descriptor(Target);
+							Target.fpfh_descriptors = Describer.fpfh_descriptors;
+							Matcher.fpfh_query_descriptors = Query.fpfh_descriptors;
+							Matcher.fpfh_target_descriptors = Target.fpfh_descriptors;
+							Matcher.calculate_fpfh_Correspondences(0.7f);
+							Registrator.set_input_correspondences(Matcher.corresp);
+							Registrator.set_distance_threshold(20 * Query.resolution / 2);
+							Registrator.init_RANSAC();
+							Registrator.do_ransac();
+							Registrator.do_icp();
+							Registrator.print_precision_recall();
+							result = Registrator.get_result();
+							pr_filename = pr_root
+								+ "/" + ParameterHandler->get_dataset()
+								+ "/" + ParameterHandler->get_object()
+								+ "/" + ParameterHandler->get_preprocessor_mode()
+								+ "/fpfh"
+								+ "/" + Query.identifier + "_to_" + Target.identifier + ".csv";
+							FileHandler.writeToFile(result, pr_filename);
 						}
 						if (ParameterHandler->get_match_retrieval_state()) {
 							std::string matches;
