@@ -1,0 +1,6 @@
+normal estimation,0.687000
+detecting keypoints,0.867000
+calculating descriptor,0.972000
+matching,0.006000
+Ransac Rejection,0.025000
+ICP,0.476000

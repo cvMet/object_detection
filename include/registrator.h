@@ -23,6 +23,7 @@ private:
 	std::string footer;
 	float distance_threshold = 0.0f;
 	bool query_aligned = false;
+	int total_matches = 0;
 
 public:
 
@@ -52,6 +53,7 @@ public:
 		RansacRejector.getCorrespondences(RANSACCorrespondences);
 		ransac_transformation = RansacRejector.getBestTransformation();
 		std::cout << "# Correspondences found after RANSAC: " << RANSACCorrespondences.size() << endl;
+		total_matches += RANSACCorrespondences.size();
 		std::cout << "RANSAC Transformation Matrix yielding the largest number of inliers.  : \n" << ransac_transformation << endl;
 		pcl::transformPointCloud(*Query->cloud, *ransac_aligned_cloud, ransac_transformation);
 		pcl::transformPointCloud(Query->keypoints, *ransac_aligned_keypoints, ransac_transformation);
@@ -155,12 +157,15 @@ public:
 	}
 
 	int get_number_of_matches() {
-		int matches = (RANSACCorrespondences.size() > InputCorrespondences.size()) ? RANSACCorrespondences.size() : InputCorrespondences.size();
-		return matches;
+		return total_matches;
 	}
 
 	int get_number_of_tp() {
 		return true_positives.size();
+	}
+
+	void set_input_correspondences(pcl::Correspondences correspondences) {
+		InputCorrespondences = correspondences;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr get_icp_aligned_cloud() {

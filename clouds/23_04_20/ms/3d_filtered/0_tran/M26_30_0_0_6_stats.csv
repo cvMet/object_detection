@@ -1,0 +1,4 @@
+time_textToDistance,0.083000
+time_distanceToCloud,0.003000
+time_medianfilter,0.443000
+time_backgroundRemoval,0.004000

@@ -23,6 +23,7 @@ private:
     bool ransac = true;
     bool visu = false;
     bool downsample = false;
+    bool fpfh = false;
     int ne_scalefactor = 5;
     int median_window_size = 5;
     int sor_neighbor_count = 10;
@@ -33,7 +34,7 @@ private:
     float roi_z_limit = 0.2f;
     float background_removal_threshold = 0.005f;
     int detection_threshold = 0;
-    std::string object = "mutter_sequence_easy";
+    std::string object = "mutter_sequence";
     std::string dataset = "object_threshold_eval";
     std::string preprocessor_mode = "3d_filtered";
 public:
@@ -255,6 +256,10 @@ public:
 
     bool get_iss_frame_based_pose_estimation_state() {
         return iss_frame_based_estimation;
+    }
+
+    bool get_fpfh_state() {
+        return fpfh;
     }
 
     bool get_transformation_matrices_based_pose_estimation_state() {

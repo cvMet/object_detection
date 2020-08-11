@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef DESCRIPTOR_H
-#define DESCRIPTOR_H
-
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -25,7 +22,7 @@
 #include "scene.h"
 #include "keypointdetector.h"
 
-#define isshot 1 //1 if SHOT Descriptor, 0 if FPFH
+//#define isshot 1 //1 if SHOT Descriptor, 0 if FPFH
 //Typedef
 typedef pcl::PointXYZ PointType;
 typedef pcl::Normal NormalType;
@@ -35,52 +32,44 @@ class Descriptor
 {
 private:
 	int support_radius = 30;
+	struct {
+		std::vector<bshot_descriptor> bshot_descriptors;
+		pcl::PointCloud<pcl::FPFHSignature33> fpfh_descriptors;
+	}descriptor_collection;
+
 public:
 	void set_support_radius(int value) {
 		support_radius = value;
 	}
-
-#if isshot
 	std::vector<bshot_descriptor> descriptors;
-#else
-	pcl::PointCloud<pcl::FPFHSignature33> modelDescriptor_;
-	pcl::PointCloud<pcl::FPFHSignature33> sceneDescriptor_;
-#endif
+	pcl::PointCloud<pcl::FPFHSignature33> fpfh_descriptors;
 
 
 
 	void calculateDescriptor(Scene scene) {
-#if isshot
+		//#if isshot
 		bshot bshotEstimation;
 		bshotEstimation.normals = scene.normals;
 		bshotEstimation.keypoints = scene.keypoints;
 		bshotEstimation.cloud = scene.cloud;
 
-		bshotEstimation.calculate_SHOT(float(support_radius*scene.resolution));
+		bshotEstimation.calculate_SHOT(float(support_radius * scene.resolution));
 		bshotEstimation.compute_bshot();
 
 		descriptors = bshotEstimation.bshot;
-
-#else 
+		descriptor_collection.bshot_descriptors = descriptors;
+	}
+	void calculate_fpfh_descriptor(Scene scene){
 		pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfhEstimation;
-
 		pcl::search::KdTree<PointXYZ>::Ptr tree(new pcl::search::KdTree<PointXYZ>);
 		fpfhEstimation.setSearchMethod(tree);
 		//Calculate Model descriptors
-		fpfhEstimation.setRadiusSearch(modelSupportradius);
-		fpfhEstimation.setInputCloud(KeypointDetector.modelKeypoints_.makeShared());
-		fpfhEstimation.setInputNormals(NormalEstimator.modelNormals_.makeShared());
-		fpfhEstimation.setSearchSurface(model_.makeShared());
-		fpfhEstimation.compute(modelDescriptor_);
-		//Calculate scene descriptors
-		fpfhEstimation.setRadiusSearch(sceneSupportradius);
-		fpfhEstimation.setInputCloud(KeypointDetector.sceneKeypoints_.makeShared());
-		fpfhEstimation.setInputNormals(NormalEstimator.sceneNormals_.makeShared());
-		fpfhEstimation.setSearchSurface(scene_.makeShared());
-		fpfhEstimation.compute(sceneDescriptor_);
-#endif
+		fpfhEstimation.setRadiusSearch(20 * scene.resolution);
+		fpfhEstimation.setInputCloud(scene.keypoints.makeShared());
+		fpfhEstimation.setInputNormals(scene.normals.makeShared());
+		fpfhEstimation.setSearchSurface(scene.cloud);
+		fpfhEstimation.compute(fpfh_descriptors);
+		descriptor_collection.fpfh_descriptors = fpfh_descriptors;
+
 	}
-
-
 };
-#endif

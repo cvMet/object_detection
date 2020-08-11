@@ -10,6 +10,7 @@ public:
 	pcl::PointCloud<pcl::PointXYZ> keypoints;
 	std::vector<int> keypoint_indices;
 	std::vector<bshot_descriptor> descriptors;
+	pcl::PointCloud<pcl::FPFHSignature33> fpfh_descriptors;
 	float resolution = 0.0f;
 	Scene(string name_, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_)
 	: identifier(name_), cloud(cloud_) {

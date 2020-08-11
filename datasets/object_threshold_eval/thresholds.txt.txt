@@ -1,0 +1,3 @@
+Resulting Thresholds:
+
+weizenbroetchen: 4

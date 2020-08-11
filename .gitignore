@@ -1,10 +1,6 @@
 .vs/
 out/
 CmakeSettings.json
-datasets/**
 src/out/**
-clouds/**
-PR/**
-stats/**
 matlab/*.ply
 matlab/*.jpg

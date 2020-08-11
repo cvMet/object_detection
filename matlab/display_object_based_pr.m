@@ -1,7 +1,7 @@
 clear all;
 x_axis = 1;
 y_axis = 1;
-rootdir = '..\PR\Buch\object_threshold_eval\mutter_sequence\';
+rootdir = '..\PR\Buch\object_threshold_eval\weizenbroetchen_sequence_easy\';
 folder_list = rdir([rootdir, '\**\*.'], 'regexp(name, ''SHOT'')', true);
 files = dir(strcat(folder_list(1).name, '\*.csv'));
 %Groundtruths for different sets
@@ -12,6 +12,7 @@ weizenbroetchen_groundtruth_hard_extended = [ones(57,1);zeros(55,1)];
 
 mutter_groundtruth_easy = [ones(15,1);zeros(40,1)];
 mutter_groundtruth = [ones(15,1);zeros(70,1)];
+
 for file = 1:length(files)
     filename = strcat(files(file).folder, '\', files(file).name);
     data = load(filename,'-ascii');
@@ -37,7 +38,7 @@ for file = 1:length(files)
     end
     %Start with threshold=0 and increment till max#matches
     max_matches = max(NOF_matches);
-    P = sum(mutter_groundtruth);
+    P = sum(weizenbroetchen_groundtruth_easy);
     precision = [];
     recall = [];
     for threshold = 0:(max_matches)
@@ -45,7 +46,7 @@ for file = 1:length(files)
         fp = 0;
         for i = 1:length(NOF_matches)
             if(NOF_matches(i) >= threshold)
-                if(mutter_groundtruth(i))
+                if(weizenbroetchen_groundtruth_easy(i))
                     tp = tp + 1;
                 else
                     fp = fp + 1;
