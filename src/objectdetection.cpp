@@ -534,11 +534,11 @@ int main(int argc, char* argv[])
 						}
 						if (ParameterHandler->get_visualization_state()) {
 							boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-							viewer->setBackgroundColor(0, 0, 0);
+							viewer->setBackgroundColor(0.15, 0.15, 0.15);
 							viewer->initCameraParameters();
 							//Move query so that it is separated from the target to see correspondences
 							Eigen::Matrix4f t;
-							t << 1, 0, 0, Query.resolution * 200,
+							t << 1, 0, 0, Query.resolution * 80,
 								0, 1, 0, 0,
 								0, 0, 1, 0,
 								0, 0, 0, 1;
@@ -559,12 +559,12 @@ int main(int argc, char* argv[])
 								Correspondences = Matcher.corresp;
 							}
 							//Add query keypoints to visualizer
-							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(visu_query_keypoints.makeShared(), 200, 0, 0);
+							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(Query.keypoints.makeShared(), 200, 0, 0);
 							viewer->addPointCloud<pcl::PointXYZ>(visu_query_keypoints.makeShared(), red, "sample cloud1");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1");
 							//add target keypoints to visualizer
-							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue(Target.keypoints.makeShared(), 0, 0, 150);
-							viewer->addPointCloud<pcl::PointXYZ>(Target.keypoints.makeShared(), blue, "sample cloud2");
+							pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(Target.keypoints.makeShared(), 0, 255, 0);
+							viewer->addPointCloud<pcl::PointXYZ>(Target.keypoints.makeShared(), green, "sample cloud2");
 							viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2");
 							//add lines between the correspondences
 							viewer->addCorrespondences<pcl::PointXYZ>(visu_query_keypoints.makeShared(), Target.keypoints.makeShared(), Correspondences, "correspondences");
