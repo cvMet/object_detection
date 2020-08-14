@@ -1,0 +1,4 @@
+normal estimation,0.044000
+detecting keypoints,0.063000
+calculating descriptor,0.105000
+matching,0.001000
