@@ -46,9 +46,9 @@ public:
         angles.push_back(beta * 180 / PI);
         angles.push_back(gamma * 180 / PI);
 
-        std::cout << "alpha: " << (double)alpha * 180 / PI << std::endl;
-        std::cout << "beta: " << (double)beta * 180 / PI << std::endl;
-        std::cout << "gamma: " << (double)gamma * 180 / PI << std::endl;
+        std::cout << "yaw angle: " << (double)alpha * 180 / PI << std::endl;
+        std::cout << "pitch angle: " << (double)beta * 180 / PI << std::endl;
+        std::cout << "roll angle: " << (double)gamma * 180 / PI << std::endl;
 
         return angles;
     }
@@ -63,9 +63,9 @@ public:
         translation.push_back(y_translation);
         translation.push_back(z_translation);
 
-        std::cout << "x_translation: " << (double)x_translation;
-        std::cout << "y_translation: " << (double)y_translation;
-        std::cout << "z_translation: " << (double)z_translation;
+        std::cout << "x_translation: " << (double)x_translation << std::endl;;
+        std::cout << "y_translation: " << (double)y_translation << std::endl;;
+        std::cout << "z_translation: " << (double)z_translation << std::endl;;
 
         return translation;
     }

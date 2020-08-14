@@ -37,18 +37,6 @@ public:
 		}
 	}
 
-	//void  calculateVoxelgridKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, float leaf_size_model, float leaf_size_scene)
-	//{
-	//	// Find Keypoints on the input cloud
-	//	pcl::VoxelGrid<pcl::PointXYZ> voxelgrid;
-	//	voxelgrid.setLeafSize(leaf_size_model, leaf_size_model, leaf_size_model);
-	//	voxelgrid.setInputCloud(model.makeShared());
-	//	voxelgrid.filter(queryKeypoints_);
-	//	voxelgrid.setLeafSize(leaf_size_scene, leaf_size_scene, leaf_size_scene);
-	//	voxelgrid.setInputCloud(scene.makeShared());
-	//	voxelgrid.filter(targetKeypoints_);
-	//}
-
 	void calculateIssKeypoints(Scene& scene) {
 		//pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> issDetector;
@@ -66,5 +54,18 @@ public:
 		calculate_keypoint_indices(scene);
 		std::cout << "No. Keypoints: " << keypoints.size() << " of: " << scene.cloud->size() << std::endl;
 	}
+
+	//void  calculateVoxelgridKeypoints(pcl::PointCloud<pcl::PointXYZ> model, pcl::PointCloud<pcl::PointXYZ> scene, float leaf_size_model, float leaf_size_scene)
+	//{
+	//	// Find Keypoints on the input cloud
+	//	pcl::VoxelGrid<pcl::PointXYZ> voxelgrid;
+	//	voxelgrid.setLeafSize(leaf_size_model, leaf_size_model, leaf_size_model);
+	//	voxelgrid.setInputCloud(model.makeShared());
+	//	voxelgrid.filter(queryKeypoints_);
+	//	voxelgrid.setLeafSize(leaf_size_scene, leaf_size_scene, leaf_size_scene);
+	//	voxelgrid.setInputCloud(scene.makeShared());
+	//	voxelgrid.filter(targetKeypoints_);
+	//}
+
 };
 #endif

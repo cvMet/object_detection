@@ -28,7 +28,7 @@ public:
 
 		switch (choice)
 		{
-		case 'B':
+		case 'E':
 		{
 			std::cout << "background_removal state: " << std::to_string(parameter_handler->toggle_background_removal()) << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));

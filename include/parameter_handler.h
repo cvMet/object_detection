@@ -34,7 +34,7 @@ private:
     float roi_z_limit = 0.2f;
     float background_removal_threshold = 0.005f;
     int detection_threshold = 0;
-    std::string object = "mutter_sequence";
+    std::string object = "mutter_sequence_easy";
     std::string dataset = "object_threshold_eval";
     std::string preprocessor_mode = "3d_filtered";
 public:

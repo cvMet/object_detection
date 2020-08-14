@@ -36,7 +36,7 @@ public:
 
         case 'L':
         {
-            set_query_learning();
+            //To be implemented - sry 
         }
         break;
 
